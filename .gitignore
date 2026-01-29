@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.env
+.env
+env/
+venv/
+ENV/
+venv/
+*.egg-info/
+*.eggs/
+
+# Node.js
+node_modules/
+*.log
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+
+# Frontend
+frontend/public/build/
+frontend/public/dist/
+frontend/public/assets/
