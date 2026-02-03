@@ -6,6 +6,12 @@ class Message(BaseModel):
     content: str
     timestamp: Optional[float] = None
 
+class Feedback(BaseModel):
+    score: int
+    pros: List[str]
+    cons: List[str]
+    improvement_tip: str
+
 class SessionState(BaseModel):
     session_id: str
     active_speaker: str  # "user", "interviewer", "instructor"

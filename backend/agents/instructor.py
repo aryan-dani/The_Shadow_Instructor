@@ -1,39 +1,43 @@
 from google import genai
 from google.genai import types
 from utils.config import config
-from models.schemas import Message
-from typing import List
+from models.schemas import Message, Feedback
+from utils.prompts import INSTRUCTOR_SYSTEM_PROMPT
+from typing import List, Optional
+import json
 
 class InstructorAgent:
     def __init__(self):
         self.client = genai.Client(api_key=config.GEMINI_API_KEY)
         self.model = config.INSTRUCTOR_MODEL
         
-    async def analyze_and_coach(self, history: List[Message]) -> str:
+    async def analyze_and_coach(self, history: List[Message]) -> Optional[str]:
         # The instructor looks at the history and provides feedback.
-        formatted_history = "\n".join([f"{msg.role}: {msg.content}" for msg in history])
+        # We only want to analyze the *last* user message in context of history
+        if not history or history[-1].role != "user":
+            return None # Only critique after user speaks (or maybe after interviewer replies to user? Let's stick to simple turn-based)
+
+        # Actually, standard flow: User speaks -> Interviewer speaks -> Instructor critiques USER's last move.
+        # But 'history' here likely includes the Interviewer's *pending* or *just sent* response if we append it first in main.py.
+        # Let's assume we want to critique the interactions.
         
-        system_instruction = (
-            "You are a mentorship AI (The Shadow Instructor). "
-            "Analyze the ongoing interview and provide critical feedback to the candidate (user). "
-            "Focus on communication style, technical accuracy, and problem-solving approach."
-        )
+        formatted_history = "\n".join([f"{msg.role}: {msg.content}" for msg in history])
         
         try:
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=formatted_history,
                 config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    thinking_config=types.ThinkingConfig(include_thoughts=True), # Enable high reasoning/thinking
-                    temperature=0.7
+                    system_instruction=INSTRUCTOR_SYSTEM_PROMPT,
+                    temperature=0.5,
+                    response_mime_type="application/json",
+                    response_schema=Feedback
                 )
             )
             
-            # If using thinking model, we might want to extract thoughts or just return text.
-            # Assuming standard text return for now.
-            return response.text
+            # Return the JSON text directly. The frontend/main.py will handle it.
+            return response.text or None
             
         except Exception as e:
             print(f"Error generating instructor response: {e}")
-            return "Observation: Keep checking your calculations."
+            return None
