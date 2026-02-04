@@ -9,7 +9,7 @@ import {
 import { motion } from "framer-motion";
 
 interface ResumeUploaderProps {
-  onComplete: (role: string) => void;
+  onComplete: (role: string, resumeText: string) => void;
 }
 
 export default function ResumeUploader({ onComplete }: ResumeUploaderProps) {
@@ -50,7 +50,8 @@ export default function ResumeUploader({ onComplete }: ResumeUploaderProps) {
 
       const data = await res.json();
       if (data.status === "success") {
-        onComplete(role);
+        // Pass both role and extracted text
+        onComplete(data.target_role || role, data.extracted_text);
       } else {
         throw new Error(data.message || "Parsing failed.");
       }

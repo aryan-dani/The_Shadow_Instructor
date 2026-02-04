@@ -89,7 +89,10 @@ export const useSimulationSocket = (
 
   const sendAudio = useCallback((data: Blob) => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      console.log("📤 Sending Audio Blob:", data.size, "bytes to Backend");
       socketRef.current.send(data);
+    } else {
+      console.warn("⚠️ Cannot send audio: Socket not open");
     }
   }, []);
 

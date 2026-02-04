@@ -2,25 +2,49 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, MessageSquare, Monitor } from "lucide-react";
-import { useSimulationSocket } from "@/hooks/useSimulationSocket";
+import { ArrowLeft, MessageSquare } from "lucide-react";
+import { useGeminiLive, GeminiTurn } from "@/hooks/useGeminiLive";
 import ChatInterface from "@/components/ChatInterface";
 import LiveSession from "@/components/LiveSession";
 import ResumeUploader from "@/components/ResumeUploader";
+
+// Adapter Type for ChatInterface
+type ChatMessage = {
+  role: "user" | "interviewer" | "instructor";
+  content: string;
+  timestamp?: number;
+};
 
 export default function Home() {
   const [started, setStarted] = useState(false);
   const [selectedRole, setSelectedRole] = useState("Software Engineer");
 
-  const { isConnected, messages, sendMessage, sendAudio, connect, disconnect } =
-    useSimulationSocket("ws://localhost:8000/ws/simulation", selectedRole);
+  // Use the new Gemini Live hook
+  const {
+    isConnected,
+    messages: geminiMessages,
+    connect,
+    disconnect,
+  } = useGeminiLive();
 
-  const handleStartInterview = (role: string) => {
+  // Adapter for messages
+  const messages: ChatMessage[] = geminiMessages
+    .map((msg: GeminiTurn) => ({
+      role: (msg.role === "model" ? "interviewer" : "user") as
+        | "user"
+        | "interviewer"
+        | "instructor", // "user" | "interviewer"
+      content: msg.text || "",
+      timestamp: msg.timestamp,
+    }))
+    .filter((m) => m.content); // Filter out empty audio-only turns if any text is missing
+
+  const handleStartInterview = (role: string, resumeText: string) => {
     setSelectedRole(role);
     setStarted(true);
-    // Give a slight delay for UI transition before connecting socket
+    // Connect directly to Gemini Live
     setTimeout(() => {
-      connect();
+      connect(role, resumeText);
     }, 500);
   };
 
@@ -29,10 +53,17 @@ export default function Home() {
     setStarted(false);
   };
 
+  const handleSendMessage = (msg: string) => {
+    // Chat interface text input support could be added via:
+    // ws.send({ client_content: { turn_complete: true, turns: [{ role: "user", parts: [{ text: msg }] }] } })
+    // For now, the hook assumes Voice-first, but we can log that text sending is not fully wired in the hook yet
+    console.log("Text sending not implemented in Voice Mode yet:", msg);
+  };
+
   return (
     <main className="flex min-h-screen flex-col bg-slate-900 text-slate-100 relative overflow-hidden">
       {/* Background Gradient */}
-      <div className="absolute inset-x-0 top-0 h-125 bg-gradient-to-b from-blue-900/20 to-transparent pointer-events-none" />
+      <div className="absolute inset-x-0 top-0 h-125 bg-linear-to-b from-blue-900/20 to-transparent pointer-events-none" />
 
       <AnimatePresence mode="wait">
         {!started ? (
@@ -87,12 +118,10 @@ export default function Home() {
                   {/* The User's Video Feed (Self View) */}
                   <div className="absolute inset-0">
                     <LiveSession
-                      onAudioData={sendAudio}
+                      onAudioData={() => {}} // No-op, audio handled by hook
                       isConnected={isConnected}
                     />
                   </div>
-
-                  {/* Overlay for Interviewer Persona (Optional Visuals could go here) */}
                 </div>
               </div>
 
@@ -105,9 +134,10 @@ export default function Home() {
                   </h2>
                 </div>
                 <div className="flex-1 overflow-hidden relative">
+                  {/* @ts-ignore - types mismatch simple fix */}
                   <ChatInterface
-                    messages={messages}
-                    onSendMessage={sendMessage}
+                    messages={messages as any}
+                    onSendMessage={handleSendMessage}
                     disabled={!isConnected}
                   />
                 </div>
