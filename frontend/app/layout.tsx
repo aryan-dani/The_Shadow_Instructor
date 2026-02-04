@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+
+const inter = Inter({
+  variable: "--font-sans",
+  subsets: ["latin"],
+});
 
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-mono",
@@ -8,8 +13,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "The Shadow Instructor",
-  description: "Live Interview Simulation Protocol",
+  title: "Shadow Instructor | AI Interview Coach",
+  description:
+    "Practice technical interviews with an AI-powered interviewer. Get real-time feedback and improve your skills.",
 };
 
 export default function RootLayout({
@@ -18,9 +24,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body
-        className={`${jetbrainsMono.variable} font-mono antialiased bg-cyber-black text-neon-blue selection:bg-neon-pink selection:text-black`}
+        className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}
       >
         {children}
       </body>

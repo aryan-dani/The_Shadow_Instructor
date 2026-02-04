@@ -21,12 +21,41 @@ export function useGeminiLive() {
   const audioQueueRef = useRef<Int16Array[]>([]);
   const isPlayingRef = useRef(false);
   const nextStartTimeRef = useRef(0);
+  const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const isMutedRef = useRef(false);
+  const isInterruptedRef = useRef(false);
+
+  const stopAudioPlayback = useCallback(() => {
+    // Stop current source
+    if (currentSourceRef.current) {
+      try {
+        currentSourceRef.current.stop();
+      } catch (e) {
+        // Ignore errors if already stopped
+      }
+      currentSourceRef.current = null;
+    }
+    // Clear queue
+    audioQueueRef.current = [];
+    isPlayingRef.current = false;
+    nextStartTimeRef.current = 0;
+  }, []);
 
   const processAudioQueue = useCallback(() => {
-    if (!audioContextRef.current || audioQueueRef.current.length === 0) {
+    // If not playing or queue empty, stop
+    if (audioQueueRef.current.length === 0) {
       isPlayingRef.current = false;
       return;
     }
+
+    if (
+      !audioContextRef.current ||
+      audioContextRef.current.state === "closed"
+    ) {
+      isPlayingRef.current = false;
+      return;
+    }
+
     isPlayingRef.current = true;
 
     // Dequeue next chunk
@@ -39,29 +68,38 @@ export function useGeminiLive() {
       float32[i] = chunk[i] / 32768; // Normalized -1.0 to 1.0
     }
 
-    // Schedule playback
-    const buffer = audioContextRef.current.createBuffer(
-      1,
-      float32.length,
-      24000,
-    ); // Model is 24kHz usually
-    buffer.getChannelData(0).set(float32);
+    try {
+      // Schedule playback
+      const buffer = audioContextRef.current.createBuffer(
+        1,
+        float32.length,
+        24000,
+      ); // Model is 24kHz usually
+      buffer.getChannelData(0).set(float32);
 
-    const source = audioContextRef.current.createBufferSource();
-    source.buffer = buffer;
-    source.connect(audioContextRef.current.destination);
+      const source = audioContextRef.current.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioContextRef.current.destination);
+      currentSourceRef.current = source;
 
-    // Ensure smooth continuous playback
-    const ctxTime = audioContextRef.current.currentTime;
-    let startTime = nextStartTimeRef.current;
-    if (startTime < ctxTime) startTime = ctxTime;
+      // Ensure smooth continuous playback
+      const ctxTime = audioContextRef.current.currentTime;
+      let startTime = nextStartTimeRef.current;
+      if (startTime < ctxTime) startTime = ctxTime;
 
-    source.start(startTime);
-    nextStartTimeRef.current = startTime + buffer.duration;
+      source.start(startTime);
+      nextStartTimeRef.current = startTime + buffer.duration;
 
-    source.onended = () => {
-      processAudioQueue();
-    };
+      source.onended = () => {
+        // Only continue if we haven't been stopped/cleared
+        if (currentSourceRef.current === source) {
+          processAudioQueue();
+        }
+      };
+    } catch (e) {
+      console.error("Audio Playback Error:", e);
+      isPlayingRef.current = false;
+    }
   }, []);
 
   const queueAudioOutput = useCallback(
@@ -79,6 +117,7 @@ export function useGeminiLive() {
 
       audioQueueRef.current.push(int16);
 
+      // Only trigger if not already loop-running
       if (!isPlayingRef.current) {
         processAudioQueue();
       }
@@ -118,8 +157,14 @@ YOUR GOAL:
 1. Conduct a rigorous but fair technical interview.
 2. Start by briefly validating 1-2 key items from their resume to build rapport.
 3. Then move to a system design or coding challenge fitting the role.
-4. Speak naturally, professionally, and concisely. 
-5. This is a VOICE interview. Keep responses spoken-word friendly.
+
+STYLE GUIDELINES (STRICT):
+- You are a VOICE-ONLY interface.
+- You must NOT generate internal thought logs, plans, or headers (e.g., "**Initiating...**").
+- You must NOT say things like "I'm focusing on..." or "I will now ask...".
+- Your output must ONLY be the exact words you speak to the candidate.
+- Be concise (under 30 seconds).
+- Speak naturally and professionally.
         `;
 
           // C. Send Bidi Setup
@@ -167,23 +212,73 @@ YOUR GOAL:
 
           const serverContent = data.serverContent;
           if (serverContent) {
+            // Check for interruption signal
+            if (serverContent.interrupted) {
+              console.log("Interruption detected - clearing audio queue");
+              isInterruptedRef.current = false; // Server acked the interruption, we can listen again
+              stopAudioPlayback();
+            }
+
+            // New turn logic: if server signals start of a turn, clear residual audio
+            // Note: 'turnStart' is not a standard field, but we can infer start if we receive text/audio after an idle period
+            // or rely on 'interrupted'. For now, we'll stick to 'interrupted' and robust queue management.
             if (serverContent.modelTurn) {
               const parts = serverContent.modelTurn.parts;
               for (const part of parts) {
                 if (part.text) {
-                  console.log("Model Text:", part.text);
-                  setMessages((prev) => [
-                    ...prev,
-                    { role: "model", text: part.text, timestamp: Date.now() },
-                  ]);
+                  // FILTER: Ignore "Thought Logs" or internal monologue starting with ** or "I'm focusing"
+                  // This is a client-side patch for model verbosity
+                  if (
+                    part.text.startsWith("**") ||
+                    part.text.startsWith("I'm focusing") ||
+                    part.text.startsWith("I've interpreted")
+                  ) {
+                    continue;
+                  }
+
+                  // Only add message if it has meaningful content
+                  if (part.text.trim()) {
+                    setMessages((prev) => {
+                      const lastMsg = prev[prev.length - 1];
+                      // Merge with previous model message if it exists and looks like a continuation
+                      if (lastMsg && lastMsg.role === "model" && lastMsg.text) {
+                        return [
+                          ...prev.slice(0, -1),
+                          {
+                            ...lastMsg,
+                            text:
+                              lastMsg.text +
+                              (lastMsg.text.endsWith(" ") ? "" : " ") +
+                              part.text,
+                          },
+                        ];
+                      }
+                      return [
+                        ...prev,
+                        {
+                          role: "model",
+                          text: part.text,
+                          timestamp: Date.now(),
+                        },
+                      ];
+                    });
+                  }
                 }
                 if (part.inlineData) {
+                  // If we locally interrupted, ignore incoming audio chunks for a bit
+                  // until the server confirms interruption or finishes the turn.
+                  // However, waiting for "interrupted" might be too strict if server decides NOT to interrupt.
+                  // Compromise: if interrupted ref is true, we drop.
+                  if (isInterruptedRef.current) {
+                    continue;
+                  }
                   // PCM Audio
                   queueAudioOutput(part.inlineData.data);
                 }
               }
             }
             if (serverContent.turnComplete) {
+              isInterruptedRef.current = false; // Reset on turn complete
               console.log("Turn Complete");
             }
           }
@@ -193,33 +288,49 @@ YOUR GOAL:
           console.log("Gemini Closed:", event.code, event.reason);
           setIsConnected(false);
           stopAudioInput();
+          stopAudioPlayback();
         };
       } catch (e) {
         console.error("Connection Failed:", e);
         setIsConnected(false);
+        stopAudioPlayback();
       }
     },
-    [processAudioQueue, queueAudioOutput],
+    [processAudioQueue, queueAudioOutput, stopAudioPlayback],
   );
 
   const disconnect = useCallback(() => {
-    if (socketRef.current) socketRef.current.close();
+    if (socketRef.current) {
+      socketRef.current.close();
+      socketRef.current = null; // Prevent multiple close attempts
+    }
     stopAudioInput();
+    stopAudioPlayback();
     setIsConnected(false);
-  }, []);
+  }, [stopAudioPlayback]);
 
   // 3. Audio Input Handling (Mic -> PCM 16kHz -> Base64 -> WS)
   const startAudioInput = async (ws: WebSocket) => {
-    // Initialize Audio Context
-    audioContextRef.current = new (
-      window.AudioContext || (window as any).webkitAudioContext
-    )({ sampleRate: 16000 }); // Try to ask directly for 16kHz
+    // If context exists and is closed, create new one
+    if (audioContextRef.current?.state === "closed") {
+      audioContextRef.current = null;
+    }
+
+    // Initialize Audio Context if needed
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (
+        window.AudioContext || (window as any).webkitAudioContext
+      )({ sampleRate: 16000 }); // Try to ask directly for 16kHz
+    }
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
           sampleRate: 16000,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
         },
       });
       streamRef.current = stream;
@@ -240,7 +351,24 @@ YOUR GOAL:
       processor.onaudioprocess = (e) => {
         if (ws.readyState !== WebSocket.OPEN) return;
 
+        // If muted, do NOT send data
+        if (isMutedRef.current) return;
+
         const inputData = e.inputBuffer.getChannelData(0); // Float32
+
+        // Client-side VAD (Voice Activity Detection) to stop playback if user speaks
+        let sum = 0;
+        for (let i = 0; i < inputData.length; i++) {
+          sum += inputData[i] * inputData[i];
+        }
+        const rms = Math.sqrt(sum / inputData.length);
+
+        // Threshold 0.02 is roughly -34dB, good for detecting active speech vs silence
+        if (rms > 0.02 && isPlayingRef.current) {
+          // "Barge-in": Immediately cut off the bot if the user is speaking loudly enough
+          stopAudioPlayback();
+          isInterruptedRef.current = true; // Mark as locally interrupted
+        }
 
         // RESAMPLE TO 16kHz if needed
         // This is a naive nearest-neighbor resample.
@@ -313,8 +441,19 @@ YOUR GOAL:
     if (streamRef.current)
       streamRef.current.getTracks().forEach((t) => t.stop());
     if (processorRef.current) processorRef.current.disconnect();
-    if (audioContextRef.current) audioContextRef.current.close();
+    if (audioContextRef.current && audioContextRef.current.state !== "closed") {
+      audioContextRef.current.close().catch(console.error);
+    }
   };
 
-  return { connect, disconnect, isConnected, messages };
+  const setMicMuted = useCallback((muted: boolean) => {
+    isMutedRef.current = muted;
+    if (streamRef.current) {
+      streamRef.current.getAudioTracks().forEach((track) => {
+        track.enabled = !muted;
+      });
+    }
+  }, []);
+
+  return { connect, disconnect, isConnected, messages, setMicMuted };
 }
