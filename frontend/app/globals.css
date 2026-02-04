@@ -1,35 +1,42 @@
 @import "tailwindcss";
 
 @theme {
-  --color-neon-blue: #00f3ff;
-  --color-neon-pink: #ff00ff;
-  --color-neon-green: #0aff00;
-  --color-cyber-black: #050505;
-  --color-cyber-gray: #121212;
+  --color-primary: #3b82f6;
+  --color-bg-dark: #0f172a;
 }
 
 :root {
-  --background: #050505;
-  --foreground: #00f3ff;
+  --background: #0f172a;
+  --foreground: #f8fafc;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  /* font-family will be handled in layout.tsx via next/font */
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0a0a0a;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #222;
+  background: #334155;
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #00f3ff;
+  background: #475569;
 }
