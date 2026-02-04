@@ -122,9 +122,44 @@ export function useGeminiLive() {
     [scheduleAudioQueue],
   );
 
+  const disconnect = useCallback(() => {
+    // Prevent multiple calls
+    if (!isConnected && !socketRef.current) return;
+
+    console.log("Disconnecting...");
+
+    // Close WebSocket
+    if (socketRef.current) {
+      socketRef.current.close();
+      socketRef.current = null;
+    }
+
+    // Stop Mic / Input
+    stopAudioInput();
+
+    // Stop Speakers / Output
+    stopAudioPlayback();
+
+    // Reset States
+    setIsConnected(false);
+    setMessages([]);
+    isInterruptedRef.current = false;
+    audioQueueRef.current = [];
+
+    // Ensure scheduled sources are killed again just in case
+    scheduledSourcesRef.current.forEach((s) => {
+      try {
+        s.stop();
+      } catch (e) {}
+    });
+    scheduledSourcesRef.current = [];
+  }, [stopAudioPlayback, isConnected]);
+
   // 2. Connection Management
   const connect = useCallback(
     async (role: string, resumeText: string) => {
+      disconnect(); // Ensure clean slate
+
       try {
         console.log("Connecting to Gemini Live...");
         // A. Get Token
@@ -194,6 +229,9 @@ STYLE GUIDELINES (STRICT):
         };
 
         ws.onmessage = async (event) => {
+          // If this socket is dead/replaced, ignore the message
+          if (socketRef.current !== ws) return;
+
           let data;
           try {
             if (event.data instanceof Blob) {
@@ -295,28 +333,23 @@ STYLE GUIDELINES (STRICT):
 
         ws.onclose = (event) => {
           console.log("Gemini Closed:", event.code, event.reason);
-          setIsConnected(false);
+          if (socketRef.current === ws) {
+            setIsConnected(false);
+          }
           stopAudioInput();
           stopAudioPlayback();
         };
       } catch (e) {
         console.error("Connection Failed:", e);
+        // If we deliberately closed it, socketRef will be null, so ignore error
+        if (!socketRef.current) return;
+
         setIsConnected(false);
         stopAudioPlayback();
       }
     },
-    [scheduleAudioQueue, queueAudioOutput, stopAudioPlayback],
+    [scheduleAudioQueue, queueAudioOutput, stopAudioPlayback, disconnect],
   );
-
-  const disconnect = useCallback(() => {
-    if (socketRef.current) {
-      socketRef.current.close();
-      socketRef.current = null; // Prevent multiple close attempts
-    }
-    stopAudioInput();
-    stopAudioPlayback();
-    setIsConnected(false);
-  }, [stopAudioPlayback]);
 
   // 3. Audio Input Handling (Mic -> PCM 16kHz -> Base64 -> WS)
   const startAudioInput = async (ws: WebSocket) => {
