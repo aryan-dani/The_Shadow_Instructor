@@ -21,30 +21,30 @@ export function useGeminiLive() {
   const audioQueueRef = useRef<Int16Array[]>([]);
   const isPlayingRef = useRef(false);
   const nextStartTimeRef = useRef(0);
-  const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const scheduledSourcesRef = useRef<AudioBufferSourceNode[]>([]);
   const isMutedRef = useRef(false);
   const isInterruptedRef = useRef(false);
 
   const stopAudioPlayback = useCallback(() => {
-    // Stop current source
-    if (currentSourceRef.current) {
+    // Stop all actively scheduled sources
+    scheduledSourcesRef.current.forEach((source) => {
       try {
-        currentSourceRef.current.stop();
+        source.onended = null;
+        source.stop();
       } catch (e) {
-        // Ignore errors if already stopped
+        // ignore
       }
-      currentSourceRef.current = null;
-    }
+    });
+    scheduledSourcesRef.current = [];
+
     // Clear queue
     audioQueueRef.current = [];
     isPlayingRef.current = false;
     nextStartTimeRef.current = 0;
   }, []);
 
-  const processAudioQueue = useCallback(() => {
-    // If not playing or queue empty, stop
-    if (audioQueueRef.current.length === 0) {
-      isPlayingRef.current = false;
+  const scheduleAudioQueue = useCallback(() => {
+    if (isInterruptedRef.current) {
       return;
     }
 
@@ -52,53 +52,50 @@ export function useGeminiLive() {
       !audioContextRef.current ||
       audioContextRef.current.state === "closed"
     ) {
-      isPlayingRef.current = false;
       return;
     }
 
-    isPlayingRef.current = true;
+    const ctx = audioContextRef.current;
+    const now = ctx.currentTime;
 
-    // Dequeue next chunk
-    const chunk = audioQueueRef.current.shift();
-    if (!chunk) return;
-
-    // Convert Int16 -> Float32
-    const float32 = new Float32Array(chunk.length);
-    for (let i = 0; i < chunk.length; i++) {
-      float32[i] = chunk[i] / 32768; // Normalized -1.0 to 1.0
+    // If we've fallen behind or just started, reset time to now + small buffer
+    if (nextStartTimeRef.current < now) {
+      nextStartTimeRef.current = now + 0.05;
     }
 
-    try {
-      // Schedule playback
-      const buffer = audioContextRef.current.createBuffer(
-        1,
-        float32.length,
-        24000,
-      ); // Model is 24kHz usually
-      buffer.getChannelData(0).set(float32);
+    // Schedule ALL available chunks in the queue
+    while (audioQueueRef.current.length > 0) {
+      const chunk = audioQueueRef.current.shift();
+      if (!chunk) continue;
 
-      const source = audioContextRef.current.createBufferSource();
-      source.buffer = buffer;
-      source.connect(audioContextRef.current.destination);
-      currentSourceRef.current = source;
+      // Convert Int16 -> Float32
+      const float32 = new Float32Array(chunk.length);
+      for (let i = 0; i < chunk.length; i++) {
+        float32[i] = chunk[i] / 32768;
+      }
 
-      // Ensure smooth continuous playback
-      const ctxTime = audioContextRef.current.currentTime;
-      let startTime = nextStartTimeRef.current;
-      if (startTime < ctxTime) startTime = ctxTime;
+      try {
+        const buffer = ctx.createBuffer(1, float32.length, 24000);
+        buffer.getChannelData(0).set(float32);
 
-      source.start(startTime);
-      nextStartTimeRef.current = startTime + buffer.duration;
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
 
-      source.onended = () => {
-        // Only continue if we haven't been stopped/cleared
-        if (currentSourceRef.current === source) {
-          processAudioQueue();
-        }
-      };
-    } catch (e) {
-      console.error("Audio Playback Error:", e);
-      isPlayingRef.current = false;
+        source.start(nextStartTimeRef.current);
+        nextStartTimeRef.current += buffer.duration;
+
+        scheduledSourcesRef.current.push(source);
+
+        source.onended = () => {
+          // Cleanup finished source from tracking array
+          scheduledSourcesRef.current = scheduledSourcesRef.current.filter(
+            (s) => s !== source,
+          );
+        };
+      } catch (e) {
+        console.error("Audio Schedule Error:", e);
+      }
     }
   }, []);
 
@@ -117,12 +114,12 @@ export function useGeminiLive() {
 
       audioQueueRef.current.push(int16);
 
-      // Only trigger if not already loop-running
-      if (!isPlayingRef.current) {
-        processAudioQueue();
+      // Trigger scheduling
+      if (!isInterruptedRef.current) {
+        scheduleAudioQueue();
       }
     },
-    [processAudioQueue],
+    [scheduleAudioQueue],
   );
 
   // 2. Connection Management
@@ -215,14 +212,24 @@ STYLE GUIDELINES (STRICT):
             // Check for interruption signal
             if (serverContent.interrupted) {
               console.log("Interruption detected - clearing audio queue");
-              isInterruptedRef.current = false; // Server acked the interruption, we can listen again
               stopAudioPlayback();
+              isInterruptedRef.current = false; // Server acked the interruption, we can listen again
             }
 
             // New turn logic: if server signals start of a turn, clear residual audio
             // Note: 'turnStart' is not a standard field, but we can infer start if we receive text/audio after an idle period
             // or rely on 'interrupted'. For now, we'll stick to 'interrupted' and robust queue management.
             if (serverContent.modelTurn) {
+              // If we are actively interrupted by the user locally, ignore incoming chunks until server ack
+              if (isInterruptedRef.current) {
+                // But if the server is sending a NEW turn (which this is), it might mean the server has already processed the interruption
+                // and is sending the new response. We should check if we need to reset.
+                // Actually, if we get a modelTurn, it means the model is speaking.
+                // If we were interrupting, and now we get data, it's ambiguous if it's the old stream or new.
+                // The 'interrupted' signal usually comes FIRST.
+                // Let's rely on the loops below.
+              }
+
               const parts = serverContent.modelTurn.parts;
               for (const part of parts) {
                 if (part.text) {
@@ -279,6 +286,8 @@ STYLE GUIDELINES (STRICT):
             }
             if (serverContent.turnComplete) {
               isInterruptedRef.current = false; // Reset on turn complete
+              // Also clear queue? The python code says: "For interruptions to work, we need to stop playback. So empty out the audio queue because it may have loaded much more audio than has played yet."
+              // We should probably rely on 'interrupted' signal for clearing, but turnComplete implies the end of a thought.
               console.log("Turn Complete");
             }
           }
@@ -296,7 +305,7 @@ STYLE GUIDELINES (STRICT):
         stopAudioPlayback();
       }
     },
-    [processAudioQueue, queueAudioOutput, stopAudioPlayback],
+    [scheduleAudioQueue, queueAudioOutput, stopAudioPlayback],
   );
 
   const disconnect = useCallback(() => {
@@ -364,10 +373,12 @@ STYLE GUIDELINES (STRICT):
         const rms = Math.sqrt(sum / inputData.length);
 
         // Threshold 0.02 is roughly -34dB, good for detecting active speech vs silence
-        if (rms > 0.02 && isPlayingRef.current) {
-          // "Barge-in": Immediately cut off the bot if the user is speaking loudly enough
-          stopAudioPlayback();
-          isInterruptedRef.current = true; // Mark as locally interrupted
+        if (rms > 0.02) {
+          // Only stop playback if we are actually playing
+          if (isPlayingRef.current) {
+            stopAudioPlayback();
+            isInterruptedRef.current = true; // Mark as locally interrupted
+          }
         }
 
         // RESAMPLE TO 16kHz if needed
