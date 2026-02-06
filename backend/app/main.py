@@ -51,11 +51,26 @@ async def upload_resume(
 async def get_gemini_token():
     """
     Issues an access token for calling Gemini API directly.
-    Tries Google Cloud ADC (Service Account) first for production security.
-    Falls back to GEMINI_API_KEY for local development if ADC is missing.
+    Prefers GEMINI_API_KEY for local development.
+    Falls back to Google Cloud ADC (Service Account) for production.
     """
+    import os
+    
+    # 1. Try API Key first (preferred for local dev)
+    api_key = config.GEMINI_API_KEY
+    if not api_key:
+        api_key = os.environ.get("GEMINI_API_KEY")
+    
+    if api_key:
+        print(f"Using API Key (Length: {len(api_key)})")
+        return {
+            "token": api_key,
+            "type": "key",
+            "expires_in": -1
+        }
+    
+    # 2. Fallback to ADC OAuth (for production / cloud environments)
     try:
-        # 1. Try Service Account (Production / Secure)
         SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
         creds, _ = google.auth.default(scopes=SCOPES)
         
@@ -70,23 +85,7 @@ async def get_gemini_token():
         }
     except Exception as e:
         print(f"ADC Token generation failed: {e}")
-        
-        # 2. Fallback to API Key (Dev Only)
-        api_key = config.GEMINI_API_KEY
-        
-        # Debugging: Check if key is actually loaded
-        if not api_key:
-             print("Config GEMINI_API_KEY is missing. Checking os.environ...")
-             import os
-             api_key = os.environ.get("GEMINI_API_KEY")
-
-        if api_key:
-            print(f"Falling back to API Key (Length: {len(api_key)})")
-            return {
-                "token": api_key,
-                "type": "key",
-                "expires_in": -1
-            }
-            
-        print("CRITICAL: No credentials found. ADC failed and GEMINI_API_KEY not set.")
-        raise HTTPException(status_code=500, detail="No credentials found. 1) Run 'gcloud auth application-default login' OR 2) Set GEMINI_API_KEY in backend/.env")
+        raise HTTPException(
+            status_code=500, 
+            detail="No credentials found. Set GEMINI_API_KEY in backend/.env OR configure Google Cloud ADC."
+        )
