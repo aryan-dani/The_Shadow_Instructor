@@ -7,6 +7,7 @@ export type GeminiTurn = {
   role: "user" | "model" | "system";
   text?: string;
   timestamp: number;
+  turnComplete?: boolean;
 };
 
 export function useGeminiLive() {
@@ -305,6 +306,8 @@ STYLE GUIDELINES (STRICT):
                   },
                 },
               },
+              input_audio_transcription: {},
+              output_audio_transcription: {},
               system_instruction: {
                 parts: [{ text: systemInstruction }],
               },
@@ -333,53 +336,87 @@ STYLE GUIDELINES (STRICT):
 
           const serverContent = data.serverContent;
           if (serverContent) {
+            // Debug: log all keys to find the correct field names
+            console.log("ServerContent keys:", Object.keys(serverContent));
+
             if (serverContent.interrupted) {
               console.log("Interruption detected - clearing audio queue");
               stopAudioPlayback();
               isInterruptedRef.current = false;
             }
 
+            // Handle audio output
             if (serverContent.modelTurn) {
               const parts = serverContent.modelTurn.parts;
               for (const part of parts) {
-                if (part.text) {
-                  // Filter internal monologue
-                  if (
-                    part.text.startsWith("**") ||
-                    part.text.startsWith("I'm focusing") ||
-                    part.text.startsWith("I've interpreted")
-                  ) {
-                    continue;
-                  }
-
-                  if (part.text.trim()) {
-                    setMessages((prev) => {
-                      const lastMsg = prev[prev.length - 1];
-                      if (lastMsg && lastMsg.role === "model" && lastMsg.text) {
-                        return [
-                          ...prev.slice(0, -1),
-                          {
-                            ...lastMsg,
-                            text: lastMsg.text + (lastMsg.text.endsWith(" ") ? "" : " ") + part.text,
-                          },
-                        ];
-                      }
-                      return [
-                        ...prev,
-                        { role: "model", text: part.text, timestamp: Date.now() },
-                      ];
-                    });
-                  }
-                }
                 if (part.inlineData) {
                   if (isInterruptedRef.current) continue;
+                  isPlayingRef.current = true;
                   queueAudioOutput(part.inlineData.data);
                 }
               }
             }
+
+            // Capture AI Output Transcription (try multiple possible field names)
+            const outputTranscript =
+              serverContent.modelTurnTranscription?.text ||
+              serverContent.outputTranscription?.text ||
+              serverContent.output_transcription?.text;
+
+            if (outputTranscript && outputTranscript.trim()) {
+              console.log("AI:", outputTranscript);
+              setMessages((prev) => {
+                const lastMsg = prev[prev.length - 1];
+                // Only append if the last message is from model and same turn
+                if (lastMsg && lastMsg.role === "model" && !lastMsg.turnComplete) {
+                  return [
+                    ...prev.slice(0, -1),
+                    { ...lastMsg, text: lastMsg.text + " " + outputTranscript },
+                  ];
+                }
+                return [
+                  ...prev,
+                  { role: "model", text: outputTranscript, timestamp: Date.now() },
+                ];
+              });
+            }
+
+            // Capture User Input Transcription
+            const inputTranscript =
+              serverContent.inputTranscription?.text ||
+              serverContent.input_transcription?.text;
+
+            if (inputTranscript && inputTranscript.trim()) {
+              console.log("Candidate:", inputTranscript);
+              setMessages((prev) => {
+                const lastMsg = prev[prev.length - 1];
+                // Only append if the last message is from user and same turn
+                if (lastMsg && lastMsg.role === "user" && !lastMsg.turnComplete) {
+                  return [
+                    ...prev.slice(0, -1),
+                    { ...lastMsg, text: lastMsg.text + " " + inputTranscript },
+                  ];
+                }
+                return [
+                  ...prev,
+                  { role: "user", text: inputTranscript, timestamp: Date.now() },
+                ];
+              });
+            }
+
             if (serverContent.turnComplete) {
               isInterruptedRef.current = false;
+              isPlayingRef.current = false;
               console.log("Turn Complete");
+              // Mark the last message as turn complete for proper segmentation
+              setMessages((prev) => {
+                if (prev.length === 0) return prev;
+                const lastMsg = prev[prev.length - 1];
+                return [
+                  ...prev.slice(0, -1),
+                  { ...lastMsg, turnComplete: true },
+                ];
+              });
             }
           }
         };
