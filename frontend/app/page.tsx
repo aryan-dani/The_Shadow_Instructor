@@ -38,6 +38,9 @@ type InterviewState = {
   role: string;
   resumeText: string;
   fileName: string;
+  persona: "tough" | "friendly" | "faang";
+  voice: "Puck" | "Charon" | "Kore" | "Aoede" | "Fenrir";
+  difficulty: "easy" | "medium" | "hard";
 };
 
 type ParsedResume = {
@@ -55,37 +58,48 @@ function parseResumeText(text: string): ParsedResume {
   const education: string[] = [];
   let summary = "";
 
-  // Simple heuristic parsing
+  // Simple heuristic parsing with expanded keywords
   let currentSection = "";
 
   for (const line of lines) {
-    const lowerLine = line.toLowerCase();
+    const lowerLine = line.toLowerCase().trim();
 
+    // Detect section headers (more keywords)
     if (
       lowerLine.includes("skill") ||
       lowerLine.includes("technologies") ||
-      lowerLine.includes("tools")
+      lowerLine.includes("tools") ||
+      lowerLine.includes("technical") ||
+      lowerLine.includes("competencies") ||
+      lowerLine.includes("proficiencies")
     ) {
       currentSection = "skills";
       continue;
     } else if (
       lowerLine.includes("experience") ||
       lowerLine.includes("work history") ||
-      lowerLine.includes("employment")
+      lowerLine.includes("employment") ||
+      lowerLine.includes("project") ||
+      lowerLine.includes("professional")
     ) {
       currentSection = "experience";
       continue;
     } else if (
       lowerLine.includes("education") ||
       lowerLine.includes("academic") ||
-      lowerLine.includes("degree")
+      lowerLine.includes("degree") ||
+      lowerLine.includes("university") ||
+      lowerLine.includes("college") ||
+      lowerLine.includes("certification") ||
+      lowerLine.includes("course")
     ) {
       currentSection = "education";
       continue;
     } else if (
       lowerLine.includes("summary") ||
       lowerLine.includes("objective") ||
-      lowerLine.includes("profile")
+      lowerLine.includes("profile") ||
+      lowerLine.includes("about")
     ) {
       currentSection = "summary";
       continue;
@@ -94,9 +108,9 @@ function parseResumeText(text: string): ParsedResume {
     // Extract skills (comma or pipe separated, or bullet points)
     if (currentSection === "skills") {
       const skillMatches = line
-        .split(/[,|•·]/)
+        .split(/[,|•·\-]/g)
         .map((s) => s.trim())
-        .filter((s) => s.length > 1 && s.length < 30);
+        .filter((s) => s.length > 1 && s.length < 35);
       skills.push(...skillMatches);
     } else if (currentSection === "experience" && line.trim().length > 10) {
       experience.push(line.trim());
@@ -107,7 +121,7 @@ function parseResumeText(text: string): ParsedResume {
     }
   }
 
-  // If no skills found, try to extract common tech keywords
+  // If no skills found, try to extract common tech keywords from the full text
   if (skills.length === 0) {
     const techKeywords = [
       "Python",
@@ -130,19 +144,54 @@ function parseResumeText(text: string): ParsedResume {
       "CI/CD",
       "Agile",
       "Scrum",
+      "Flask",
+      "Django",
+      "FastAPI",
+      "Next.js",
+      "Vue",
+      "Angular",
+      "Machine Learning",
+      "AI",
+      "TensorFlow",
+      "PyTorch",
+      "HTML",
+      "CSS",
+      "Linux",
+      "Azure",
+      "GCP",
+      "Redis",
+      "Kafka",
+      "Microservices",
     ];
     for (const keyword of techKeywords) {
-      if (text.toLowerCase().includes(keyword.toLowerCase())) {
+      if (
+        text.includes(keyword) ||
+        text.toLowerCase().includes(keyword.toLowerCase())
+      ) {
         skills.push(keyword);
       }
     }
   }
 
+  // If no experience found, extract lines that look like job entries
+  if (experience.length === 0) {
+    for (const line of lines) {
+      if (
+        (line.includes("20") && line.length > 20) || // Contains year like 2020, 2021, etc.
+        line.includes("•") ||
+        (line.includes("-") && line.length > 30)
+      ) {
+        experience.push(line.trim());
+        if (experience.length >= 5) break;
+      }
+    }
+  }
+
   return {
-    skills: skills.slice(0, 12),
-    experience: experience.slice(0, 3),
-    education: education.slice(0, 2),
-    summary: summary.trim().slice(0, 200),
+    skills: skills.slice(0, 15),
+    experience: experience.slice(0, 5),
+    education: education.slice(0, 3),
+    summary: summary.trim().slice(0, 300),
   };
 }
 
@@ -154,6 +203,12 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
   const [error, setError] = useState<string | null>(null);
   const [resumeText, setResumeText] = useState("");
   const [parsedResume, setParsedResume] = useState<ParsedResume | null>(null);
+
+  // Customization State
+  const [persona, setPersona] = useState<InterviewState["persona"]>("friendly");
+  const [voice, setVoice] = useState<InterviewState["voice"]>("Kore");
+  const [difficulty, setDifficulty] =
+    useState<InterviewState["difficulty"]>("medium");
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -209,6 +264,9 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
           role: data.target_role || role,
           resumeText: data.extracted_text,
           fileName: file.name,
+          persona,
+          voice,
+          difficulty,
         });
       } else {
         throw new Error(data.message || "Processing failed");
@@ -221,362 +279,266 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
-      {/* Navigation */}
-      <nav className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
-        <div className="navbar-pill px-6 py-3 flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <GraduationCap className="w-5 h-5 text-blue-400" />
-            <span className="text-sm font-semibold text-white">
-              Shadow Instructor
-            </span>
-          </div>
-          <a
-            href="https://github.com/aryan-dani/The_Shadow_Instructor"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition"
-          >
-            <Github className="w-4 h-4" />
-            GitHub
-          </a>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-black text-white font-sans antialiased selection:bg-white/20 flex flex-col">
 
-      {/* Hero Section */}
-      <section className="pt-28 pb-16 px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-start">
-            {/* Left - Hero Text */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="pt-8"
-            >
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 mb-6">
-                <Cpu className="w-3.5 h-3.5 text-blue-400" />
-                <span className="text-xs text-blue-400 font-medium">
-                  AI-Powered Interview Practice
-                </span>
+      {/* ===== NAVBAR ===== */}
+      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-neutral-800 bg-black/80 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+
+          {/* Left: Logo */}
+          <div className="flex items-center gap-8">
+            <a href="/" className="flex items-center gap-2.5 group">
+              <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center">
+                <GraduationCap className="w-5 h-5 text-black" />
               </div>
+              <span className="font-semibold text-lg tracking-tight">Shadow Instructor</span>
+            </a>
 
-              <h1 className="text-4xl lg:text-5xl font-bold text-white leading-tight mb-5">
-                Practice Technical Interviews with{" "}
-                <span className="text-accent">AI Precision</span>
-              </h1>
-
-              <p className="text-base text-slate-400 mb-8 leading-relaxed max-w-lg">
-                Upload your resume, specify your target role, and engage in
-                realistic voice conversations with an AI interviewer tailored
-                to your experience.
-              </p>
-
-              <div className="flex flex-wrap gap-4 mb-8">
-                <div className="flex items-center gap-2 text-slate-400">
-                  <Shield className="w-4 h-4 text-emerald-500" />
-                  <span className="text-sm">Private & Secure</span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-400">
-                  <Briefcase className="w-4 h-4 text-blue-400" />
-                  <span className="text-sm">Role-Specific Questions</span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-400">
-                  <Mic className="w-4 h-4 text-sky-400" />
-                  <span className="text-sm">Voice-First Experience</span>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Right - Upload Form */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-            >
-              <form onSubmit={handleSubmit} className="card-elevated p-6">
-                <h2 className="text-lg font-semibold text-white mb-1">
-                  Start Your Session
-                </h2>
-                <p className="text-slate-500 text-sm mb-6">
-                  Upload your resume to begin
-                </p>
-
-                {/* Role Input */}
-                <div className="mb-4">
-                  <label className="flex items-center gap-2 text-sm font-medium text-slate-400 mb-2">
-                    <Briefcase className="w-4 h-4 text-blue-400" />
-                    Target Position
-                  </label>
-                  <input
-                    type="text"
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    placeholder="e.g. Senior Software Engineer, Data Scientist"
-                    className="input-field"
-                  />
-                </div>
-
-                {/* File Upload */}
-                <div className="mb-4">
-                  <label className="flex items-center gap-2 text-sm font-medium text-slate-400 mb-2">
-                    <FileText className="w-4 h-4 text-blue-400" />
-                    Resume
-                  </label>
-                  <label
-                    className={`block p-6 border-2 border-dashed rounded-lg cursor-pointer transition-all ${file
-                      ? "border-emerald-500/50 bg-emerald-500/5"
-                      : "border-slate-600 hover:border-blue-500/50 hover:bg-blue-500/5"
-                      }`}
-                  >
-                    <input
-                      type="file"
-                      accept=".pdf,.txt"
-                      onChange={handleFileChange}
-                      className="hidden"
-                    />
-                    <div className="flex flex-col items-center text-center">
-                      {file ? (
-                        <>
-                          <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center mb-2">
-                            <CheckCircle className="w-5 h-5 text-emerald-400" />
-                          </div>
-                          <span className="text-sm font-medium text-white">
-                            {file.name}
-                          </span>
-                          <span className="text-xs text-emerald-400 mt-1">
-                            Ready to analyze
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center mb-2">
-                            <Upload className="w-4 h-4 text-slate-500" />
-                          </div>
-                          <span className="text-sm text-slate-400">
-                            Drop your resume or{" "}
-                            <span className="text-blue-400">browse</span>
-                          </span>
-                          <span className="text-xs text-slate-600 mt-1">
-                            PDF or TXT, max 5MB
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </label>
-                </div>
-
-                {/* Parsed Resume Preview */}
-                {parsedResume && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    className="mb-4"
-                  >
-                    <div className="text-xs text-slate-500 mb-2 font-medium uppercase tracking-wide">
-                      Extracted Information
-                    </div>
-                    <div className="space-y-3">
-                      {/* Skills */}
-                      {parsedResume.skills.length > 0 && (
-                        <div className="resume-section-card">
-                          <div className="resume-section-title">Skills</div>
-                          <div className="flex flex-wrap gap-1">
-                            {parsedResume.skills.map((skill, i) => (
-                              <span key={i} className="skill-tag">
-                                {skill}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Experience */}
-                      {parsedResume.experience.length > 0 && (
-                        <div className="resume-section-card">
-                          <div className="resume-section-title">Experience</div>
-                          <ul className="text-xs text-slate-400 space-y-1">
-                            {parsedResume.experience.map((exp, i) => (
-                              <li key={i} className="truncate">
-                                • {exp}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {/* Education */}
-                      {parsedResume.education.length > 0 && (
-                        <div className="resume-section-card">
-                          <div className="resume-section-title">Education</div>
-                          <ul className="text-xs text-slate-400 space-y-1">
-                            {parsedResume.education.map((edu, i) => (
-                              <li key={i} className="truncate">
-                                • {edu}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-
-                {error && (
-                  <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
-                    {error}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isUploading || !file || !role}
-                  className="btn-primary w-full flex items-center justify-center gap-2"
-                >
-                  {isUploading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Preparing Interview...
-                    </>
-                  ) : (
-                    <>
-                      Start Interview
-                      <ChevronRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              </form>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="py-16 px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl font-bold text-white mb-3">
-              Why Shadow Instructor?
-            </h2>
-            <p className="text-slate-400 max-w-xl mx-auto text-sm">
-              A realistic practice environment designed to help you succeed in
-              technical interviews.
-            </p>
+            {/* Nav Links */}
+            <div className="hidden md:flex items-center gap-1">
+              <a href="#" className="px-3 py-1.5 text-sm text-neutral-400 hover:text-white transition-colors rounded-md hover:bg-neutral-800/50">
+                Dashboard
+              </a>
+              <a href="#" className="px-3 py-1.5 text-sm text-neutral-400 hover:text-white transition-colors rounded-md hover:bg-neutral-800/50">
+                Leaderboard
+              </a>
+              <a href="#" className="px-3 py-1.5 text-sm text-neutral-400 hover:text-white transition-colors rounded-md hover:bg-neutral-800/50">
+                Docs
+              </a>
+            </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            {[
-              {
-                icon: <Mic className="w-5 h-5" />,
-                title: "Voice-First Experience",
-                description:
-                  "Natural voice conversations with sub-second latency, just like a real interview.",
-              },
-              {
-                icon: <FileText className="w-5 h-5" />,
-                title: "Resume-Aware Questions",
-                description:
-                  "Questions tailored to your experience and the specific role you're targeting.",
-              },
-              {
-                icon: <Clock className="w-5 h-5" />,
-                title: "Practice Anytime",
-                description:
-                  "No scheduling needed. Practice whenever you're ready, as many times as you want.",
-              },
-            ].map((feature, i) => (
-              <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.1 * i }}
-                className="feature-card"
-              >
-                <div className="feature-icon">{feature.icon}</div>
-                <h3 className="text-base font-semibold text-white mb-2">
-                  {feature.title}
-                </h3>
-                <p className="text-slate-400 text-sm leading-relaxed">
-                  {feature.description}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* How it Works Section */}
-      <section id="how" className="py-16 px-6 border-t border-slate-800">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl font-bold text-white mb-3">How It Works</h2>
-            <p className="text-slate-400 max-w-xl mx-auto text-sm">
-              Get started in three simple steps
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                step: "01",
-                title: "Upload Resume",
-                description:
-                  "Upload your PDF resume. Our system extracts key information to personalize your session.",
-              },
-              {
-                step: "02",
-                title: "Specify Role",
-                description:
-                  "Enter your target position. The AI interviewer adapts questions accordingly.",
-              },
-              {
-                step: "03",
-                title: "Practice",
-                description:
-                  "Engage in a voice conversation. Get real-time responses and improve your skills.",
-              },
-            ].map((item, i) => (
-              <motion.div
-                key={item.step}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.1 * i }}
-                className="text-center"
-              >
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-500/10 border border-blue-500/20 mb-4">
-                  <span className="text-blue-400 font-semibold text-sm">
-                    {item.step}
-                  </span>
-                </div>
-                <h3 className="text-base font-semibold text-white mb-2">
-                  {item.title}
-                </h3>
-                <p className="text-slate-400 text-sm leading-relaxed">
-                  {item.description}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="py-8 px-6 border-t border-slate-800">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <GraduationCap className="w-4 h-4 text-slate-500" />
-            <span className="text-sm text-slate-500">Shadow Instructor</span>
-          </div>
+          {/* Right: Account */}
           <div className="flex items-center gap-4">
             <a
               href="https://github.com/aryan-dani/The_Shadow_Instructor"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-slate-500 hover:text-slate-300 transition"
+              className="p-2 text-neutral-400 hover:text-white transition-colors"
             >
-              <Github className="w-4 h-4" />
+              <Github className="w-5 h-5" />
             </a>
+            <button className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-neutral-700 hover:border-neutral-500 bg-neutral-900 hover:bg-neutral-800 transition-all text-sm">
+              <User className="w-4 h-4 text-neutral-400" />
+              <span className="text-neutral-300">Account</span>
+            </button>
           </div>
+        </div>
+      </nav>
+
+      {/* ===== MAIN CONTENT ===== */}
+      <main className="pt-32 pb-24 px-6 flex-1">
+        <div className="max-w-5xl mx-auto">
+
+          {/* Grid - Full Width, Spaced Out */}
+          <div className="grid lg:grid-cols-2 gap-8">
+
+            {/* LEFT: Context Setup */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+              className="bg-neutral-900/80 border border-neutral-800 rounded-3xl p-8 lg:p-10 backdrop-blur-sm"
+            >
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 rounded-2xl bg-white/10 border border-neutral-700 flex items-center justify-center">
+                  <FileText className="w-6 h-6 text-white" />
+                </div>
+                <h2 className="text-lg font-semibold">Context Setup</h2>
+              </div>
+
+              <div className="space-y-5">
+                {/* Role */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Target Role</label>
+                  <input
+                    type="text"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    placeholder="Senior Backend Engineer"
+                    className="w-full bg-black border border-neutral-800 rounded-lg px-4 py-3 text-white placeholder:text-neutral-600 focus:border-neutral-600 focus:ring-0 outline-none transition-colors"
+                  />
+                </div>
+
+                {/* Resume Upload */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Resume</label>
+                  <div
+                    onClick={() => document.getElementById("file-upload")?.click()}
+                    className={`border border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${file
+                      ? "border-white/30 bg-white/5"
+                      : "border-neutral-700 hover:border-neutral-500 hover:bg-neutral-800/30"
+                      }`}
+                  >
+                    <input
+                      id="file-upload"
+                      type="file"
+                      accept=".pdf"
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
+
+                    {isUploading ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span className="text-sm text-neutral-400">Parsing...</span>
+                      </div>
+                    ) : file ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <CheckCircle className="w-6 h-6 text-white" />
+                        <span className="text-sm text-white font-medium truncate max-w-50">{file.name}</span>
+                        <span className="text-xs text-neutral-500">Ready</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 text-neutral-500">
+                        <Upload className="w-6 h-6" />
+                        <span className="text-sm">Upload PDF Resume</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Skills Preview */}
+                {parsedResume && !isUploading && (
+                  <div className="pt-4 border-t border-neutral-800">
+                    <div className="flex items-center justify-between text-xs text-neutral-500 mb-3">
+                      <span>Extracted Skills</span>
+                      <span className="text-white">{parsedResume.skills.length} found</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {parsedResume.skills.slice(0, 5).map((skill, i) => (
+                        <span key={i} className="px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-xs text-neutral-300">
+                          {skill}
+                        </span>
+                      ))}
+                      {parsedResume.skills.length > 5 && (
+                        <span className="px-2 py-1 rounded bg-neutral-800/50 text-xs text-neutral-500">
+                          +{parsedResume.skills.length - 5}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+
+            {/* RIGHT: Configuration */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.15, ease: "easeOut" }}
+              className="bg-neutral-900/80 border border-neutral-800 rounded-3xl p-8 lg:p-10 backdrop-blur-sm"
+            >
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 rounded-2xl bg-white/10 border border-neutral-700 flex items-center justify-center">
+                  <Settings className="w-6 h-6 text-white" />
+                </div>
+                <h2 className="text-lg font-semibold">Configuration</h2>
+              </div>
+
+              <div className="space-y-6">
+                {/* Persona */}
+                <div className="space-y-3">
+                  <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Interviewer Style</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: "friendly", label: "Friendly", desc: "Supportive" },
+                      { id: "tough", label: "Tough", desc: "Direct" },
+                      { id: "faang", label: "FAANG", desc: "Technical" },
+                    ].map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => setPersona(p.id as any)}
+                        className={`p-3 rounded-lg border text-left transition-all ${persona === p.id
+                          ? "bg-white text-black border-white"
+                          : "bg-neutral-800/50 border-neutral-700 hover:border-neutral-500 text-white"
+                          }`}
+                      >
+                        <div className="font-medium text-sm">{p.label}</div>
+                        <div className={`text-xs mt-0.5 ${persona === p.id ? "text-neutral-600" : "text-neutral-500"}`}>{p.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Voice */}
+                <div className="space-y-3">
+                  <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Voice</label>
+                  <div className="flex flex-wrap gap-2">
+                    {["Kore", "Charon", "Aoede", "Puck", "Fenrir"].map((v) => (
+                      <button
+                        key={v}
+                        onClick={() => setVoice(v as any)}
+                        className={`px-3 py-2 rounded-lg border text-sm font-medium transition-all ${voice === v
+                          ? "bg-white text-black border-white"
+                          : "bg-transparent border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-white"
+                          }`}
+                      >
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Difficulty */}
+                <div className="space-y-3">
+                  <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Difficulty</label>
+                  <div className="bg-black rounded-lg p-1 flex border border-neutral-800">
+                    {[
+                      { id: "easy", label: "Easy" },
+                      { id: "medium", label: "Medium" },
+                      { id: "hard", label: "Hard" },
+                    ].map((d) => (
+                      <button
+                        key={d.id}
+                        onClick={() => setDifficulty(d.id as any)}
+                        className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${difficulty === d.id
+                          ? "bg-white text-black"
+                          : "text-neutral-500 hover:text-white"
+                          }`}
+                      >
+                        {d.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* CTA Button */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.25, ease: "easeOut" }}
+            className="mt-10"
+          >
+            <button
+              onClick={handleSubmit}
+              disabled={!file || !role || isUploading}
+              className="group w-full bg-white text-black font-semibold py-5 rounded-2xl hover:bg-neutral-100 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-3 text-lg shadow-lg shadow-white/5 hover:shadow-white/10"
+            >
+              <span>Start Interview</span>
+              <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </button>
+            {error && (
+              <div className="mt-6 text-center text-red-400 text-sm border border-red-500/20 bg-red-500/10 p-4 rounded-xl">
+                {error}
+              </div>
+            )}
+          </motion.div>
+        </div>
+      </main>
+
+      {/* ===== FOOTER ===== */}
+      <footer className="mt-auto border-t border-neutral-800 py-6 px-6">
+        <div className="max-w-6xl mx-auto flex items-center justify-center text-neutral-500 text-sm">
+          <a href="/copyright" className="flex items-center gap-2 hover:text-white transition-colors">
+            <GraduationCap className="w-4 h-4" />
+            <span>Shadow Instructor</span>
+          </a>
+          <span className="mx-3">•</span>
+          <span>© 2026</span>
         </div>
       </footer>
     </div>
@@ -608,7 +570,13 @@ function InterviewDashboard({
 
   // Connect to Gemini on mount
   useEffect(() => {
-    connect(interviewData.role, interviewData.resumeText);
+    connect({
+      role: interviewData.role,
+      resumeText: interviewData.resumeText,
+      persona: interviewData.persona,
+      voice: interviewData.voice,
+      difficulty: interviewData.difficulty,
+    });
     return () => {
       disconnect();
     };

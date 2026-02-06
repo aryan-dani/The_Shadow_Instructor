@@ -251,7 +251,7 @@ export function useGeminiLive() {
   }, [stopAudioPlayback]);
 
   const connect = useCallback(
-    async (role: string, resumeText: string) => {
+    async ({ role, resumeText, persona, voice, difficulty }: { role: string; resumeText: string; persona: "tough" | "friendly" | "faang"; voice: "Puck" | "Charon" | "Kore" | "Aoede" | "Fenrir"; difficulty: "easy" | "medium" | "hard" }) => {
       disconnect();
 
       try {
@@ -272,24 +272,57 @@ export function useGeminiLive() {
           console.log("Gemini Connected. Sending Setup...");
           setIsConnected(true);
 
+          // Generate dynamic system instruction based on config
+          let toneInstruction = "";
+          let focusInstruction = "";
+
+          switch (persona) {
+            case "tough":
+              toneInstruction = "You are a TOUGH, fast-paced technical interviewer. Do not accept vague answers. Interrupt if the candidate is rambling. Be direct and strict.";
+              break;
+            case "friendly":
+              toneInstruction = "You are a friendly, encouraging senior engineer. Be patient, give helpful hints if they get stuck, and keep the tone warm and collaborative.";
+              break;
+            case "faang":
+              toneInstruction = "You are an interviewer at a FAANG company (Google/Meta level). Focus heavily on scalability, edge cases, and algorithmic complexity. Expect high precision.";
+              break;
+          }
+
+          switch (difficulty) {
+            case "easy":
+              focusInstruction = "Ask standard, fundamental questions. If they struggle, guide them to the answer. Avoid complex system design edge cases.";
+              break;
+            case "medium":
+              focusInstruction = "Ask practically relevant questions. Expect them to handle standard edge cases. Offer minor hints only if completely stuck.";
+              break;
+            case "hard":
+              focusInstruction = "Ask really challenging, deep technical questions. Probe for weakness. Do not give hints. Focus on obscure edge cases and performance optimizations.";
+              break;
+          }
+
           const systemInstruction = `
 You are an expert technical interviewer at a top tech company.
 You are interviewing the candidate for the role of: ${role}.
+
+Your Persona: ${toneInstruction}
+Difficulty Level: ${focusInstruction}
 
 CANDIDATE STARTING CONTEXT (RESUME HIGHLIGHTS):
 ${resumeText.substring(0, 4000)}
 
 YOUR GOAL:
-1. Conduct a rigorous but fair technical interview.
-2. Start by briefly validating 1-2 key items from their resume to build rapport.
+1. Conduct a rigorous technical interview matching your persona and difficulty settings.
+2. START IMMEDIATELY by introducing yourself (in character) and asking your first question based on their resume.
 3. Then move to a system design or coding challenge fitting the role.
+
+IMPORTANT: Begin speaking as soon as you receive this. Do NOT wait for the candidate to speak first.
+Start with a brief greeting and your first question.
 
 STYLE GUIDELINES (STRICT):
 - You are a VOICE-ONLY interface.
-- You must NOT generate internal thought logs, plans, or headers (e.g., "**Initiating...**").
-- You must NOT say things like "I'm focusing on..." or "I will now ask...".
+- You must NOT generate internal thought logs, plans, or headers.
 - Your output must ONLY be the exact words you speak to the candidate.
-- Be concise (under 30 seconds).
+- Be concise (under 30 seconds per response).
 - Speak naturally and professionally.
           `;
 
@@ -301,7 +334,7 @@ STYLE GUIDELINES (STRICT):
                 speech_config: {
                   voice_config: {
                     prebuilt_voice_config: {
-                      voice_name: "Kore",
+                      voice_name: voice || "Kore",
                     },
                   },
                 },
@@ -314,6 +347,24 @@ STYLE GUIDELINES (STRICT):
             },
           };
           ws.send(JSON.stringify(setupMessage));
+
+          // Send a trigger message to make AI start speaking first
+          setTimeout(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+              const triggerMessage = {
+                client_content: {
+                  turns: [
+                    {
+                      role: "user",
+                      parts: [{ text: "Begin the interview now. Introduce yourself and ask your first question." }],
+                    },
+                  ],
+                  turn_complete: true,
+                },
+              };
+              ws.send(JSON.stringify(triggerMessage));
+            }
+          }, 500);
 
           startAudioInput(ws);
         };
@@ -336,11 +387,7 @@ STYLE GUIDELINES (STRICT):
 
           const serverContent = data.serverContent;
           if (serverContent) {
-            // Debug: log all keys to find the correct field names
-            console.log("ServerContent keys:", Object.keys(serverContent));
-
             if (serverContent.interrupted) {
-              console.log("Interruption detected - clearing audio queue");
               stopAudioPlayback();
               isInterruptedRef.current = false;
             }
@@ -357,21 +404,20 @@ STYLE GUIDELINES (STRICT):
               }
             }
 
-            // Capture AI Output Transcription (try multiple possible field names)
+            // Capture AI Output Transcription - real-time display
             const outputTranscript =
               serverContent.modelTurnTranscription?.text ||
               serverContent.outputTranscription?.text ||
               serverContent.output_transcription?.text;
 
             if (outputTranscript && outputTranscript.trim()) {
-              console.log("AI:", outputTranscript);
               setMessages((prev) => {
                 const lastMsg = prev[prev.length - 1];
-                // Only append if the last message is from model and same turn
+                // Append to last model message if it exists and isn't complete
                 if (lastMsg && lastMsg.role === "model" && !lastMsg.turnComplete) {
                   return [
                     ...prev.slice(0, -1),
-                    { ...lastMsg, text: lastMsg.text + " " + outputTranscript },
+                    { ...lastMsg, text: (lastMsg.text || "") + " " + outputTranscript },
                   ];
                 }
                 return [
@@ -381,20 +427,19 @@ STYLE GUIDELINES (STRICT):
               });
             }
 
-            // Capture User Input Transcription
+            // Capture User Input Transcription - real-time display
             const inputTranscript =
               serverContent.inputTranscription?.text ||
               serverContent.input_transcription?.text;
 
             if (inputTranscript && inputTranscript.trim()) {
-              console.log("Candidate:", inputTranscript);
               setMessages((prev) => {
                 const lastMsg = prev[prev.length - 1];
-                // Only append if the last message is from user and same turn
+                // Append to last user message if it exists and isn't complete
                 if (lastMsg && lastMsg.role === "user" && !lastMsg.turnComplete) {
                   return [
                     ...prev.slice(0, -1),
-                    { ...lastMsg, text: lastMsg.text + " " + inputTranscript },
+                    { ...lastMsg, text: (lastMsg.text || "") + " " + inputTranscript },
                   ];
                 }
                 return [
@@ -407,8 +452,7 @@ STYLE GUIDELINES (STRICT):
             if (serverContent.turnComplete) {
               isInterruptedRef.current = false;
               isPlayingRef.current = false;
-              console.log("Turn Complete");
-              // Mark the last message as turn complete for proper segmentation
+              // Mark the last message as turn complete
               setMessages((prev) => {
                 if (prev.length === 0) return prev;
                 const lastMsg = prev[prev.length - 1];
