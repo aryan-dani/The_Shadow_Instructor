@@ -163,7 +163,9 @@ export function useGeminiLive() {
       try {
         console.log("Connecting to Gemini Live...");
         // A. Get Token
-        const authRes = await fetch("http://localhost:8000/auth/token");
+        const apiBaseUrl =
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const authRes = await fetch(`${apiBaseUrl}/auth/token`);
         const authData = await authRes.json();
         if (!authData.token) throw new Error("Failed to get token");
 

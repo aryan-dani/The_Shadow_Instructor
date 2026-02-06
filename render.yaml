@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: shadow-instructor-backend
+    env: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0 # Using a modern Python version
+      - key: GEMINI_API_KEY
+        sync: false # You will need to enter this value in the Render Dashboard
