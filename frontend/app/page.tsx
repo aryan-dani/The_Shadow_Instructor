@@ -347,22 +347,22 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
                 <h2 className="text-lg font-semibold">Context Setup</h2>
               </div>
 
-              <div className="space-y-5">
+              <div className="space-y-8">
                 {/* Role */}
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Target Role</label>
+                <div className="bg-black/50 border border-neutral-800 rounded-xl p-4">
+                  <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Target Role</label>
                   <input
                     type="text"
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
                     placeholder="Senior Backend Engineer"
-                    className="w-full bg-black border border-neutral-800 rounded-lg px-4 py-3 text-white placeholder:text-neutral-600 focus:border-neutral-600 focus:ring-0 outline-none transition-colors"
+                    className="w-full bg-neutral-900/80 border border-neutral-700 rounded-lg px-4 py-3 text-white placeholder:text-neutral-600 focus:border-neutral-500 focus:bg-neutral-900 focus:ring-1 focus:ring-neutral-600 outline-none transition-all"
                   />
                 </div>
 
                 {/* Resume Upload */}
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Resume</label>
+                <div className="bg-black/50 border border-neutral-800 rounded-xl p-4">
+                  <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Resume</label>
                   <div
                     onClick={() => document.getElementById("file-upload")?.click()}
                     className={`border border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${file
@@ -438,8 +438,8 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
 
               <div className="space-y-6">
                 {/* Persona */}
-                <div className="space-y-3">
-                  <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Interviewer Style</label>
+                <div className="bg-black/50 border border-neutral-800 rounded-xl p-4">
+                  <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Interviewer Style</label>
                   <div className="grid grid-cols-3 gap-2">
                     {[
                       { id: "friendly", label: "Friendly", desc: "Supportive" },
@@ -462,8 +462,8 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
                 </div>
 
                 {/* Voice */}
-                <div className="space-y-3">
-                  <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Voice</label>
+                <div className="bg-black/50 border border-neutral-800 rounded-xl p-4">
+                  <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Voice</label>
                   <div className="flex flex-wrap gap-2">
                     {["Kore", "Charon", "Aoede", "Puck", "Fenrir"].map((v) => (
                       <button
@@ -481,9 +481,9 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
                 </div>
 
                 {/* Difficulty */}
-                <div className="space-y-3">
-                  <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Difficulty</label>
-                  <div className="bg-black rounded-lg p-1 flex border border-neutral-800">
+                <div className="bg-black/50 border border-neutral-800 rounded-xl p-4">
+                  <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Difficulty</label>
+                  <div className="bg-neutral-900/80 rounded-lg p-1 flex border border-neutral-700">
                     {[
                       { id: "easy", label: "Easy" },
                       { id: "medium", label: "Medium" },
@@ -644,48 +644,48 @@ function InterviewDashboard({
   const parsedResume = parseResumeText(interviewData.resumeText);
 
   return (
-    <div className="h-screen flex flex-col bg-bg-dark">
-      {/* Top Header */}
-      <header className="shrink-0 h-14 glass-strong flex items-center justify-between px-6 z-50">
+    <div className="h-screen flex flex-col bg-black text-white font-sans antialiased">
+      {/* Top Header - Matching Landing Page */}
+      <header className="shrink-0 h-16 border-b border-neutral-800 bg-black/80 backdrop-blur-xl flex items-center justify-between px-6 z-50">
         <div className="flex items-center gap-4">
           <button
             onClick={handleEndCall}
-            className="p-2 rounded-lg hover:bg-white/5 transition text-slate-400 hover:text-white"
+            className="p-2 rounded-lg hover:bg-neutral-800 transition text-neutral-400 hover:text-white"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <div className="h-4 w-px bg-slate-700" />
+          <div className="h-4 w-px bg-neutral-700" />
           <div>
             <h1 className="text-sm font-medium text-white">
               Interview Session
             </h1>
-            <p className="text-xs text-slate-500">{interviewData.role}</p>
+            <p className="text-xs text-neutral-500">{interviewData.role}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           {/* Connection Status */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-neutral-900 border border-neutral-800">
             <div
-              className={`status-dot ${isConnected ? "status-connected" : "status-connecting"}`}
+              className={`w-2 h-2 rounded-full ${isConnected ? "bg-white" : "bg-neutral-500 animate-pulse"}`}
             />
-            <span className="text-xs font-medium text-slate-400">
+            <span className="text-xs font-medium text-neutral-400">
               {isConnected ? "Connected" : "Connecting..."}
             </span>
           </div>
 
           {/* Settings */}
-          <button className="p-2 rounded-lg hover:bg-white/5 transition text-slate-400 hover:text-white">
+          <button className="p-2 rounded-lg hover:bg-neutral-800 transition text-neutral-400 hover:text-white">
             <Settings className="w-4 h-4" />
           </button>
         </div>
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden p-4 gap-4">
         {/* Left Panel - Video */}
-        <div className="flex-1 p-4">
-          <div className="h-full video-container relative">
+        <div className="flex-1">
+          <div className="h-full bg-neutral-900/80 border border-neutral-800 rounded-3xl relative overflow-hidden">
             {/* Self View Video */}
             {isCameraOn ? (
               <video
@@ -693,20 +693,20 @@ function InterviewDashboard({
                 autoPlay
                 playsInline
                 muted
-                className="absolute inset-0 w-full h-full object-cover rounded-xl transform scale-x-[-1]"
+                className="absolute inset-0 w-full h-full object-cover transform scale-x-[-1]"
               />
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-24 h-24 rounded-full bg-slate-800 flex items-center justify-center">
-                  <User className="w-12 h-12 text-slate-600" />
+              <div className="absolute inset-0 flex items-center justify-center bg-neutral-900">
+                <div className="w-24 h-24 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center">
+                  <User className="w-12 h-12 text-neutral-600" />
                 </div>
               </div>
             )}
 
             {/* Live Indicator */}
-            <div className="absolute top-4 left-4 flex items-center gap-2 bg-slate-900/80 backdrop-blur px-3 py-1.5 rounded-full z-10 border border-slate-700">
+            <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/80 backdrop-blur-sm px-3 py-1.5 rounded-full z-10 border border-neutral-800">
               <div
-                className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-500" : "bg-amber-500"}`}
+                className={`w-2 h-2 rounded-full ${isConnected ? "bg-white" : "bg-neutral-500 animate-pulse"}`}
               />
               <span className="text-xs font-medium text-white">
                 {isConnected ? "Live" : "Starting..."}
@@ -714,9 +714,9 @@ function InterviewDashboard({
             </div>
 
             {/* AI Interviewer Badge */}
-            <div className="absolute top-4 right-4 flex items-center gap-2 bg-slate-900/80 backdrop-blur px-3 py-1.5 rounded-full z-10 border border-slate-700">
-              <Bot className="w-3.5 h-3.5 text-blue-400" />
-              <span className="text-xs font-medium text-slate-300">
+            <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/80 backdrop-blur-sm px-3 py-1.5 rounded-full z-10 border border-neutral-800">
+              <Bot className="w-3.5 h-3.5 text-white" />
+              <span className="text-xs font-medium text-neutral-300">
                 AI Interviewer
               </span>
             </div>
@@ -725,9 +725,9 @@ function InterviewDashboard({
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 z-10">
               <button
                 onClick={() => setIsMicOn(!isMicOn)}
-                className={`p-3.5 rounded-full transition-all ${isMicOn
-                  ? "bg-slate-700 hover:bg-slate-600 text-white"
-                  : "bg-red-500 hover:bg-red-600 text-white"
+                className={`p-3.5 rounded-full transition-all border ${isMicOn
+                  ? "bg-neutral-800 hover:bg-neutral-700 text-white border-neutral-700"
+                  : "bg-red-500 hover:bg-red-600 text-white border-red-500"
                   }`}
               >
                 {isMicOn ? (
@@ -739,9 +739,9 @@ function InterviewDashboard({
 
               <button
                 onClick={() => setIsCameraOn(!isCameraOn)}
-                className={`p-3.5 rounded-full transition-all ${isCameraOn
-                  ? "bg-slate-700 hover:bg-slate-600 text-white"
-                  : "bg-red-500 hover:bg-red-600 text-white"
+                className={`p-3.5 rounded-full transition-all border ${isCameraOn
+                  ? "bg-neutral-800 hover:bg-neutral-700 text-white border-neutral-700"
+                  : "bg-red-500 hover:bg-red-600 text-white border-red-500"
                   }`}
               >
                 {isCameraOn ? (
@@ -753,7 +753,7 @@ function InterviewDashboard({
 
               <button
                 onClick={handleEndCall}
-                className="p-3.5 rounded-full bg-red-500 hover:bg-red-600 text-white transition-all"
+                className="p-3.5 rounded-full bg-red-500 hover:bg-red-600 text-white transition-all border border-red-500"
               >
                 <PhoneOff className="w-5 h-5" />
               </button>
@@ -762,22 +762,28 @@ function InterviewDashboard({
         </div>
 
         {/* Right Panel - Transcript/Resume */}
-        <div className="w-96 shrink-0 p-4 pl-0">
-          <div className="h-full card-elevated flex flex-col overflow-hidden">
+        <div className="w-96 shrink-0">
+          <div className="h-full bg-neutral-900/80 border border-neutral-800 rounded-3xl flex flex-col overflow-hidden">
             {/* Tabs */}
-            <div className="shrink-0 flex border-b border-slate-700">
+            <div className="shrink-0 flex border-b border-neutral-800">
               <button
                 onClick={() => setActiveTab("transcript")}
-                className={`tab-button flex items-center gap-2 ${activeTab === "transcript" ? "active" : ""}`}
+                className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-medium transition-all ${activeTab === "transcript"
+                  ? "text-white border-b-2 border-white"
+                  : "text-neutral-500 hover:text-neutral-300"
+                  }`}
               >
-                <MessageSquare className="w-3.5 h-3.5" />
+                <MessageSquare className="w-4 h-4" />
                 Transcript
               </button>
               <button
                 onClick={() => setActiveTab("resume")}
-                className={`tab-button flex items-center gap-2 ${activeTab === "resume" ? "active" : ""}`}
+                className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-medium transition-all ${activeTab === "resume"
+                  ? "text-white border-b-2 border-white"
+                  : "text-neutral-500 hover:text-neutral-300"
+                  }`}
               >
-                <FileText className="w-3.5 h-3.5" />
+                <FileText className="w-4 h-4" />
                 Resume
               </button>
             </div>
@@ -826,13 +832,13 @@ function TranscriptPanel({
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6">
-            <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mb-3">
-              <MessageSquare className="w-6 h-6 text-slate-600" />
+            <div className="w-12 h-12 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center mb-3">
+              <MessageSquare className="w-6 h-6 text-neutral-500" />
             </div>
-            <h3 className="text-sm font-medium text-slate-300 mb-1">
+            <h3 className="text-sm font-medium text-neutral-300 mb-1">
               {isConnected ? "Listening..." : "Connecting..."}
             </h3>
-            <p className="text-xs text-slate-500 max-w-48">
+            <p className="text-xs text-neutral-500 max-w-48">
               {isConnected
                 ? "Start speaking to begin the interview."
                 : "Establishing connection..."}
@@ -845,31 +851,31 @@ function TranscriptPanel({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2 }}
-              className={`p-3 rounded-lg ${msg.role === "interviewer"
-                ? "message-interviewer"
-                : "message-user"
+              className={`p-3 rounded-xl border ${msg.role === "interviewer"
+                ? "bg-neutral-800/50 border-neutral-700"
+                : "bg-black/50 border-neutral-800"
                 }`}
             >
               <div className="flex items-start gap-2.5">
                 <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${msg.role === "interviewer"
-                    ? "bg-blue-500/20"
-                    : "bg-sky-500/20"
+                  className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border ${msg.role === "interviewer"
+                    ? "bg-white/10 border-neutral-600"
+                    : "bg-neutral-800 border-neutral-700"
                     }`}
                 >
                   {msg.role === "interviewer" ? (
-                    <Bot className="w-3 h-3 text-blue-400" />
+                    <Bot className="w-3 h-3 text-white" />
                   ) : (
-                    <User className="w-3 h-3 text-sky-400" />
+                    <User className="w-3 h-3 text-neutral-400" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-xs font-medium text-slate-400">
+                    <span className="text-xs font-medium text-neutral-400">
                       {msg.role === "interviewer" ? "Interviewer" : "You"}
                     </span>
                     {msg.timestamp && (
-                      <span className="text-xs text-slate-600">
+                      <span className="text-xs text-neutral-600">
                         {new Date(msg.timestamp).toLocaleTimeString([], {
                           hour: "2-digit",
                           minute: "2-digit",
@@ -877,7 +883,7 @@ function TranscriptPanel({
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-slate-200 leading-relaxed">
+                  <p className="text-sm text-neutral-200 leading-relaxed">
                     {msg.content}
                   </p>
                 </div>
@@ -889,13 +895,13 @@ function TranscriptPanel({
 
       {/* Listening Indicator */}
       {isConnected && (
-        <div className="shrink-0 p-3 border-t border-slate-700">
-          <div className="flex items-center gap-2 text-slate-500">
+        <div className="shrink-0 p-3 border-t border-neutral-800">
+          <div className="flex items-center gap-2 text-neutral-500">
             <div className="flex gap-0.5">
               {[1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="w-1 h-3 bg-blue-500 rounded-full animate-pulse"
+                  className="w-1 h-3 bg-white rounded-full animate-pulse"
                   style={{ animationDelay: `${i * 0.15}s` }}
                 />
               ))}
@@ -928,22 +934,22 @@ function ResumePanelParsed({
       className="h-full flex flex-col"
     >
       {/* Header */}
-      <div className="shrink-0 p-4 border-b border-slate-700">
+      <div className="shrink-0 p-4 border-b border-neutral-800">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-sky-500/20 flex items-center justify-center">
-              <FileText className="w-4 h-4 text-sky-400" />
+            <div className="w-8 h-8 rounded-lg bg-white/10 border border-neutral-700 flex items-center justify-center">
+              <FileText className="w-4 h-4 text-white" />
             </div>
             <div>
               <h3 className="text-sm font-medium text-white">{fileName}</h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-neutral-500">
                 {rawText.length.toLocaleString()} characters
               </p>
             </div>
           </div>
           <button
             onClick={() => setShowRaw(!showRaw)}
-            className="text-xs text-slate-500 hover:text-slate-300 transition"
+            className="text-xs text-neutral-500 hover:text-white transition px-2 py-1 rounded hover:bg-neutral-800"
           >
             {showRaw ? "Parsed View" : "Raw Text"}
           </button>
@@ -953,16 +959,16 @@ function ResumePanelParsed({
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4">
         {showRaw ? (
-          <div className="resume-content">{rawText}</div>
+          <div className="text-xs text-neutral-400 whitespace-pre-wrap font-mono leading-relaxed bg-black/50 p-3 rounded-xl border border-neutral-800">{rawText}</div>
         ) : (
           <div className="space-y-3">
             {/* Skills */}
             {parsedResume.skills.length > 0 && (
-              <div className="resume-section-card">
-                <div className="resume-section-title">Skills</div>
-                <div className="flex flex-wrap gap-1">
+              <div className="bg-black/50 border border-neutral-800 rounded-xl p-3">
+                <div className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">Skills</div>
+                <div className="flex flex-wrap gap-1.5">
                   {parsedResume.skills.map((skill, i) => (
-                    <span key={i} className="skill-tag">
+                    <span key={i} className="px-2 py-1 rounded-md bg-neutral-800 border border-neutral-700 text-xs text-neutral-300">
                       {skill}
                     </span>
                   ))}
@@ -972,9 +978,9 @@ function ResumePanelParsed({
 
             {/* Experience */}
             {parsedResume.experience.length > 0 && (
-              <div className="resume-section-card">
-                <div className="resume-section-title">Experience</div>
-                <ul className="text-xs text-slate-400 space-y-1.5">
+              <div className="bg-black/50 border border-neutral-800 rounded-xl p-3">
+                <div className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">Experience</div>
+                <ul className="text-xs text-neutral-400 space-y-1.5">
                   {parsedResume.experience.map((exp, i) => (
                     <li key={i} className="leading-relaxed">
                       • {exp}
@@ -986,9 +992,9 @@ function ResumePanelParsed({
 
             {/* Education */}
             {parsedResume.education.length > 0 && (
-              <div className="resume-section-card">
-                <div className="resume-section-title">Education</div>
-                <ul className="text-xs text-slate-400 space-y-1.5">
+              <div className="bg-black/50 border border-neutral-800 rounded-xl p-3">
+                <div className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">Education</div>
+                <ul className="text-xs text-neutral-400 space-y-1.5">
                   {parsedResume.education.map((edu, i) => (
                     <li key={i} className="leading-relaxed">
                       • {edu}
@@ -1000,9 +1006,9 @@ function ResumePanelParsed({
 
             {/* Summary */}
             {parsedResume.summary && (
-              <div className="resume-section-card">
-                <div className="resume-section-title">Summary</div>
-                <p className="text-xs text-slate-400 leading-relaxed">
+              <div className="bg-black/50 border border-neutral-800 rounded-xl p-3">
+                <div className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">Summary</div>
+                <p className="text-xs text-neutral-400 leading-relaxed">
                   {parsedResume.summary}
                 </p>
               </div>
@@ -1013,12 +1019,12 @@ function ResumePanelParsed({
               parsedResume.experience.length === 0 &&
               parsedResume.education.length === 0 && (
                 <div className="text-center py-8">
-                  <p className="text-sm text-slate-500 mb-2">
+                  <p className="text-sm text-neutral-500 mb-2">
                     Could not parse structured data
                   </p>
                   <button
                     onClick={() => setShowRaw(true)}
-                    className="text-xs text-blue-400 hover:underline"
+                    className="text-xs text-white hover:underline"
                   >
                     View raw text instead
                   </button>
