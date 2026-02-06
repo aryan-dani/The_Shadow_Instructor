@@ -140,6 +140,17 @@ export function useGeminiLive() {
     scheduledSourcesRef.current = [];
   }, [stopAudioPlayback, stopAudioInput, isConnected]);
 
+  // Keep AudioContext active in background
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && audioContextRef.current?.state === "suspended") {
+        audioContextRef.current.resume();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
+
   const startAudioInput = useCallback(async (ws: WebSocket) => {
     if (audioContextRef.current?.state === "closed") {
       audioContextRef.current = null;
@@ -251,7 +262,21 @@ export function useGeminiLive() {
   }, [stopAudioPlayback]);
 
   const connect = useCallback(
-    async ({ role, resumeText, persona, voice, difficulty }: { role: string; resumeText: string; persona: "tough" | "friendly" | "faang"; voice: "Puck" | "Charon" | "Kore" | "Aoede" | "Fenrir"; difficulty: "easy" | "medium" | "hard" }) => {
+    async ({
+      role,
+      resumeText,
+      persona,
+      voice,
+      difficulty,
+      webcamRef
+    }: {
+      role: string;
+      resumeText: string;
+      persona: "tough" | "friendly" | "faang";
+      voice: "Puck" | "Charon" | "Kore" | "Aoede" | "Fenrir";
+      difficulty: "easy" | "medium" | "hard";
+      webcamRef?: React.RefObject<HTMLVideoElement | null>;
+    }) => {
       disconnect();
 
       try {
@@ -318,6 +343,12 @@ YOUR GOAL:
 IMPORTANT: Begin speaking as soon as you receive this. Do NOT wait for the candidate to speak first.
 Start with a brief greeting and your first question.
 
+MULTIMODAL CAPABILITIES:
+- You can SEE the candidate via video stream.
+- Pay attention to their non-verbal cues (eye contact, nervousness, smiles, posture).
+- If they look confused or nervous, you can comment on it gently (e.g., "You look a bit unsure, want a hint?").
+- If they are confident and smiling, match their energy.
+
 STYLE GUIDELINES (STRICT):
 - You are a VOICE-ONLY interface.
 - You must NOT generate internal thought logs, plans, or headers.
@@ -367,6 +398,47 @@ STYLE GUIDELINES (STRICT):
           }, 500);
 
           startAudioInput(ws);
+
+          // START VIDEO STREAMING
+          if (webcamRef?.current) {
+            const videoCanvas = document.createElement("canvas");
+            const videoCtx = videoCanvas.getContext("2d");
+            const videoEl = webcamRef.current;
+
+            // Send a frame every 500ms (2 FPS) - sufficient for analysis without killing bandwidth
+            const videoInterval = setInterval(() => {
+              if (ws.readyState !== WebSocket.OPEN || !videoEl.videoWidth) return;
+
+              // Draw current frame to canvas (resize to 320px width for efficiency)
+              const scale = 320 / videoEl.videoWidth;
+              videoCanvas.width = 320;
+              videoCanvas.height = videoEl.videoHeight * scale;
+
+              videoCtx?.drawImage(videoEl, 0, 0, videoCanvas.width, videoCanvas.height);
+
+              // Get JPEG base64
+              const base64Image = videoCanvas.toDataURL("image/jpeg", 0.6).split(",")[1];
+
+              const msg = {
+                realtime_input: {
+                  media_chunks: [
+                    {
+                      mime_type: "image/jpeg",
+                      data: base64Image,
+                    },
+                  ],
+                },
+              };
+              ws.send(JSON.stringify(msg));
+            }, 500);
+
+            // Clear interval on close
+            const originalClose = ws.onclose;
+            ws.onclose = (ev) => {
+              clearInterval(videoInterval);
+              if (originalClose) originalClose.call(ws, ev);
+            };
+          }
         };
 
         ws.onmessage = async (event) => {

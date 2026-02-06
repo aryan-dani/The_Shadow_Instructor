@@ -89,3 +89,26 @@ async def get_gemini_token():
             status_code=500, 
             detail="No credentials found. Set GEMINI_API_KEY in backend/.env OR configure Google Cloud ADC."
         )
+
+# Feedback Endpoint
+from agents.feedback_agent import FeedbackAgent
+from models.schemas import Message
+from models.analysis_schema import InterviewAnalysisReport
+from typing import List
+from pydantic import BaseModel
+
+class AnalysisRequest(BaseModel):
+    history: List[Message]
+    role: str
+
+@app.post("/analyze-interview", response_model=InterviewAnalysisReport)
+async def analyze_interview_endpoint(request: AnalysisRequest):
+    """
+    Triggers a deep-dive analysis of the interview using Gemini 3 Pro Deepthink.
+    """
+    agent = FeedbackAgent()
+    try:
+        report = await agent.generate_detailed_analysis(request.history, request.role)
+        return report
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

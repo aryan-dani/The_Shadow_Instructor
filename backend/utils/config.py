@@ -9,7 +9,8 @@ load_dotenv(dotenv_path=env_path)
 class Config:
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
     INTERVIEWER_MODEL = "gemini-3-flash-preview" 
-    INSTRUCTOR_MODEL = "gemini-3-pro-preview" 
+    INSTRUCTOR_MODEL = "gemini-3-flash-preview" 
+    FEEDBACK_MODEL = "gemini-3-flash-preview" 
     
     # Defaults if not set
     HOST = os.getenv("HOST", "127.0.0.1")

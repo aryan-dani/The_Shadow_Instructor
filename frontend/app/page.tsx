@@ -3,6 +3,17 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
+  PieChart,
+  BarChart,
+  Activity,
+  Award,
+  BookOpen,
+  ArrowRight,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  MessageCircle,
   ArrowLeft,
   MessageSquare,
   FileText,
@@ -23,9 +34,17 @@ import {
   Github,
   Shield,
   Cpu,
-  Users,
+  Users
 } from "lucide-react";
 import { useGeminiLive, GeminiTurn } from "@/hooks/useGeminiLive";
+import { FeedbackDashboard } from "@/components/FeedbackDashboard";
+import {
+  ParsedResume,
+  InterviewAnalysisReport,
+  SpeechAnalysis,
+  ContentAnalysis,
+  QuestionFeedback
+} from "@/types";
 
 // ==================== TYPES ====================
 type ChatMessage = {
@@ -41,13 +60,6 @@ type InterviewState = {
   persona: "tough" | "friendly" | "faang";
   voice: "Puck" | "Charon" | "Kore" | "Aoede" | "Fenrir";
   difficulty: "easy" | "medium" | "hard";
-};
-
-type ParsedResume = {
-  skills: string[];
-  experience: string[];
-  education: string[];
-  summary: string;
 };
 
 // ==================== HELPER: Parse Resume Text ====================
@@ -549,9 +561,11 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
 function InterviewDashboard({
   interviewData,
   onEnd,
+  onAnalyze,
 }: {
   interviewData: InterviewState;
   onEnd: () => void;
+  onAnalyze: (messages: ChatMessage[]) => void;
 }) {
   const {
     isConnected,
@@ -565,8 +579,19 @@ function InterviewDashboard({
   const [activeTab, setActiveTab] = useState<"transcript" | "resume">(
     "transcript",
   );
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Adapt messages for UI - Defined early for handleEndCall
+  const messages: ChatMessage[] = geminiMessages
+    .map((msg: GeminiTurn) => ({
+      role: (msg.role === "model" ? "interviewer" : "user") as
+        | "user"
+        | "interviewer",
+      content: msg.text || "",
+      timestamp: msg.timestamp,
+    }))
+    .filter((m) => m.content);
 
   // Connect to Gemini on mount
   useEffect(() => {
@@ -576,6 +601,7 @@ function InterviewDashboard({
       persona: interviewData.persona,
       voice: interviewData.voice,
       difficulty: interviewData.difficulty,
+      webcamRef: videoRef,
     });
     return () => {
       disconnect();
@@ -627,19 +653,12 @@ function InterviewDashboard({
 
   const handleEndCall = useCallback(() => {
     disconnect();
-    onEnd();
-  }, [disconnect, onEnd]);
-
-  // Adapt messages for UI
-  const messages: ChatMessage[] = geminiMessages
-    .map((msg: GeminiTurn) => ({
-      role: (msg.role === "model" ? "interviewer" : "user") as
-        | "user"
-        | "interviewer",
-      content: msg.text || "",
-      timestamp: msg.timestamp,
-    }))
-    .filter((m) => m.content);
+    if (messages.length > 0) {
+      onAnalyze(messages);
+    } else {
+      onEnd();
+    }
+  }, [disconnect, onEnd, onAnalyze, messages]);
 
   const parsedResume = parseResumeText(interviewData.resumeText);
 
@@ -1039,13 +1058,138 @@ function ResumePanelParsed({
 
 // ==================== MAIN APP ====================
 export default function Home() {
-  const [interviewData, setInterviewData] = useState<InterviewState | null>(
-    null,
-  );
+  const [interviewData, setInterviewData] = useState<InterviewState | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<InterviewAnalysisReport | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [conversationHistory, setConversationHistory] = useState<ChatMessage[]>([]);
+  const [isClient, setIsClient] = useState(false);
+
+  // Load state on mount
+  useEffect(() => {
+    setIsClient(true);
+    const savedData = sessionStorage.getItem("interviewData");
+    const savedReport = sessionStorage.getItem("analysisReport");
+
+    if (savedData) {
+      try {
+        setInterviewData(JSON.parse(savedData));
+      } catch (e) {
+        console.error("Failed to parse saved interview data", e);
+      }
+    }
+
+    if (savedReport) {
+      try {
+        setAnalysisResult(JSON.parse(savedReport));
+      } catch (e) {
+        console.error("Failed to parse saved report", e);
+      }
+    }
+  }, []);
+
+  // Save state on change
+  useEffect(() => {
+    if (interviewData) {
+      sessionStorage.setItem("interviewData", JSON.stringify(interviewData));
+    } else {
+      sessionStorage.removeItem("interviewData");
+    }
+  }, [interviewData]);
+
+  useEffect(() => {
+    if (analysisResult) {
+      sessionStorage.setItem("analysisReport", JSON.stringify(analysisResult));
+    } else {
+      sessionStorage.removeItem("analysisReport");
+    }
+  }, [analysisResult]);
+
+
+  const handleAnalyze = async (messages: ChatMessage[]) => {
+    // BUG FIX: Provide minimal feedback if not enough messages
+    if (!messages || messages.length < 2) {
+      console.warn("Interview too short for analysis");
+      setInterviewData(null); // Or show a toast
+      return;
+    }
+
+    setConversationHistory(messages);
+    setIsAnalyzing(true);
+
+    try {
+      const res = await fetch("http://localhost:8000/analyze-interview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role: interviewData?.role || "Software Engineer",
+          history: messages.map(m => ({
+            role: m.role,
+            content: m.content,
+            timestamp: m.timestamp
+          }))
+        })
+      });
+
+      if (!res.ok) {
+        // Handle non-200 responses gracefully
+        const errText = await res.text();
+        console.error("Analysis failed:", errText);
+        throw new Error("Analysis failed");
+      }
+
+      const data: InterviewAnalysisReport = await res.json();
+      setAnalysisResult(data);
+    } catch (err) {
+      console.error("Analysis failed:", err);
+      // Fallback: Just return to home for now, but in future could show error toast
+      setInterviewData(null);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleStartNew = () => {
+    setInterviewData(null);
+    setAnalysisResult(null);
+    setConversationHistory([]);
+    sessionStorage.clear();
+  };
+
+  if (!isClient) return null; // Prevent hydration mismatch
+
+  // Render Loading State
+  if (isAnalyzing) {
+    return (
+      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <div className="w-20 h-20 rounded-full border-4 border-neutral-800 border-t-white animate-spin mx-auto mb-6" />
+          <h2 className="text-xl font-semibold mb-2">Analyzing Your Interview</h2>
+          <p className="text-neutral-500 text-sm">Generating your professional report...</p>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <AnimatePresence mode="wait">
-      {!interviewData ? (
+      {analysisResult ? (
+        <motion.div
+          key="feedback"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <FeedbackDashboard
+            report={analysisResult}
+            role={interviewData?.role || "Interview"}
+            onStartNew={handleStartNew}
+          />
+        </motion.div>
+      ) : !interviewData ? (
         <motion.div
           key="landing"
           initial={{ opacity: 0 }}
@@ -1065,6 +1209,7 @@ export default function Home() {
           <InterviewDashboard
             interviewData={interviewData}
             onEnd={() => setInterviewData(null)}
+            onAnalyze={handleAnalyze}
           />
         </motion.div>
       )}
