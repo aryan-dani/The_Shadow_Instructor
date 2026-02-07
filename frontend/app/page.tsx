@@ -38,6 +38,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { useGeminiLive, GeminiTurn } from "@/hooks/useGeminiLive";
+import { Navbar } from "@/components/Navbar";
 import { FeedbackDashboard } from "@/components/FeedbackDashboard";
 import {
   ParsedResume,
@@ -298,49 +299,8 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
   return (
     <div className="min-h-screen bg-black text-white font-sans antialiased selection:bg-white/20 flex flex-col">
       {/* ===== NAVBAR ===== */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-neutral-800 bg-black/80 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <Navbar />
 
-          {/* Left: Logo */}
-          <div className="flex items-center gap-8">
-            <a href="/" className="flex items-center gap-2.5 group">
-              <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center">
-                <GraduationCap className="w-5 h-5 text-black" />
-              </div>
-              <span className="font-semibold text-lg tracking-tight">Shadow Instructor</span>
-            </a>
-
-            {/* Nav Links */}
-            <div className="hidden md:flex items-center gap-1">
-              <a href="/" className="px-3 py-1.5 text-sm text-white bg-neutral-800 rounded-md">
-                Interview
-              </a>
-              <a href="/resume-analyzer" className="px-3 py-1.5 text-sm text-neutral-400 hover:text-white transition-colors rounded-md hover:bg-neutral-800/50">
-                Resume Analyzer
-              </a>
-              <a href="#" className="px-3 py-1.5 text-sm text-neutral-400 hover:text-white transition-colors rounded-md hover:bg-neutral-800/50">
-                Leaderboard
-              </a>
-            </div>
-          </div>
-
-          {/* Right: Account */}
-          <div className="flex items-center gap-4">
-            <a
-              href="https://github.com/aryan-dani/The_Shadow_Instructor"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 text-neutral-400 hover:text-white transition-colors"
-            >
-              <Github className="w-5 h-5" />
-            </a>
-            <button className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-neutral-700 hover:border-neutral-500 bg-neutral-900 hover:bg-neutral-800 transition-all text-sm">
-              <User className="w-4 h-4 text-neutral-400" />
-              <span className="text-neutral-300">Account</span>
-            </button>
-          </div>
-        </div>
-      </nav>
 
       {/* ===== MAIN CONTENT ===== */}
       <main className="flex-1 flex flex-col justify-center px-6 pt-20 pb-6">

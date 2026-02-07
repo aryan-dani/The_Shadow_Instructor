@@ -7,3 +7,5 @@ pydantic>=2.7.0
 pypdf>=4.0.0
 python-multipart>=0.0.9
 google-auth>=2.0.0
+groq>=0.5.0
+supabase>=2.0.0
