@@ -38,6 +38,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { useGeminiLive, GeminiTurn } from "@/hooks/useGeminiLive";
+import { createClient } from "@/utils/supabase/client";
 import { Navbar } from "@/components/Navbar";
 import { FeedbackDashboard } from "@/components/FeedbackDashboard";
 import {
@@ -1096,10 +1097,18 @@ export default function Home() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [conversationHistory, setConversationHistory] = useState<ChatMessage[]>([]);
   const [isClient, setIsClient] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
-  // Load state on mount
+  // Load state and user on mount
   useEffect(() => {
     setIsClient(true);
+
+    // Get current user
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setUserId(user.id);
+    });
+
     const savedData = sessionStorage.getItem("interviewData");
     const savedReport = sessionStorage.getItem("analysisReport");
 
@@ -1159,7 +1168,8 @@ export default function Home() {
             role: m.role,
             content: m.content,
             timestamp: m.timestamp
-          }))
+          })),
+          user_id: userId // Pass the user ID for saving
         })
       });
 

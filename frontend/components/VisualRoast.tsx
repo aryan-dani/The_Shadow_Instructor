@@ -33,7 +33,7 @@ export function VisualRoastModal({
         formData.append("file", uploadedFile);
 
         try {
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+            const apiBaseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
             const res = await fetch(`${apiBaseUrl}/analyze-resume-visual`, {
                 method: "POST",
                 body: formData,

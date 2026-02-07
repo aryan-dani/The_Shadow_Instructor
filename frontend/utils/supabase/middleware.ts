@@ -21,9 +21,7 @@ export async function updateSession(request: NextRequest) {
                         request.cookies.set(name, value)
                     )
                     response = NextResponse.next({
-                        request: {
-                            headers: request.headers,
-                        },
+                        request,
                     })
                     cookiesToSet.forEach(({ name, value, options }) =>
                         response.cookies.set(name, value, options)

@@ -18,7 +18,7 @@ export type SimulationState = {
 };
 
 export const useSimulationSocket = (
-  baseUrl: string = "ws://localhost:8000/ws/simulation",
+  baseUrl: string = (process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000") + "/ws/simulation",
   scenario: string,
 ): SimulationState => {
   const [isConnected, setIsConnected] = useState(false);

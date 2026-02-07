@@ -1,84 +1,94 @@
-"use client";
+import { createClient } from '@/utils/supabase/server'
+import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { ArrowRight, Clock, Star, Videotape } from 'lucide-react'
 
-import { useEffect, useState } from "react";
-import { Navbar } from "@/components/Navbar";
-import { createClient } from "@/utils/supabase/client";
-import { User } from "@supabase/supabase-js";
-import { format } from "date-fns";
+export default async function DashboardPage() {
+    const supabase = await createClient()
 
-// Since we don't know if shadcn table exists, let's use standard Tailwind table for now to be safe.
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
 
-export default function Dashboard() {
-    const [user, setUser] = useState<User | null>(null);
-    const [interviews, setInterviews] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-    const supabase = createClient();
+    if (!user) {
+        return redirect('/login')
+    }
 
-    useEffect(() => {
-        const getData = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            setUser(user);
-
-            if (user) {
-                const { data, error } = await supabase
-                    .from("interviews")
-                    .select("*")
-                    .eq("user_id", user.id)
-                    .order("created_at", { ascending: false });
-
-                if (data) setInterviews(data);
-            }
-            setLoading(false);
-        };
-        getData();
-    }, []);
+    const { data: interviews } = await supabase
+        .from('interviews')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
 
     return (
-        <div className="min-h-screen bg-black text-white font-sans antialiased">
-            <Navbar />
-            <main className="max-w-7xl mx-auto px-6 py-24">
-                <h1 className="text-3xl font-bold mb-8">My Interviews</h1>
-
-                {loading ? (
-                    <div className="text-neutral-400">Loading...</div>
-                ) : !user ? (
-                    <div className="text-neutral-400">Please login to view your interviews.</div>
-                ) : interviews.length === 0 ? (
-                    <div className="text-neutral-400">No interviews found. Start one!</div>
-                ) : (
-                    <div className="overflow-x-auto border border-neutral-800 rounded-xl bg-neutral-900/50">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-neutral-900 border-b border-neutral-800 text-neutral-400 uppercase tracking-wider text-xs">
-                                <tr>
-                                    <th className="px-6 py-4 font-medium">Date</th>
-                                    <th className="px-6 py-4 font-medium">Role</th>
-                                    <th className="px-6 py-4 font-medium">Overall Score</th>
-                                    <th className="px-6 py-4 font-medium">Topic</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-neutral-800 text-neutral-300">
-                                {interviews.map((interview) => (
-                                    <tr key={interview.id} className="hover:bg-neutral-800/50 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            {new Date(interview.created_at).toLocaleDateString()}
-                                        </td>
-                                        <td className="px-6 py-4 font-medium text-white">{interview.job_role}</td>
-                                        <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 rounded text-xs font-semibold ${interview.overall_score >= 80 ? 'bg-green-500/20 text-green-400' :
-                                                interview.overall_score >= 60 ? 'bg-yellow-500/20 text-yellow-400' :
-                                                    'bg-red-500/20 text-red-400'
-                                                }`}>
-                                                {interview.overall_score}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">{interview.topic}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+        <div className="min-h-screen bg-[#fdfaf6] text-[#1a1a1a]">
+            {/* Header */}
+            <div className="border-b border-black/5 bg-white px-8 py-8">
+                <div className="mx-auto flex max-w-6xl justify-between">
+                    <div>
+                        <h1 className="font-serif text-3xl font-medium tracking-tight">Your Dashboard</h1>
+                        <p className="mt-2 text-gray-500">Welcome back, {user.user_metadata.full_name}</p>
                     </div>
-                )}
-            </main>
+                    <Link
+                        href="/"
+                        className="flex h-10 items-center justify-center rounded-lg bg-black px-4 text-sm font-medium text-white transition-colors hover:bg-gray-800"
+                    >
+                        Start New Interview
+                    </Link>
+                </div>
+            </div>
+
+            {/* Content */}
+            <div className="mx-auto max-w-6xl px-8 py-12">
+                <h2 className="mb-6 font-medium text-gray-900">Recent Interviews</h2>
+
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {interviews?.map((interview) => (
+                        <div
+                            key={interview.id}
+                            className="group relative overflow-hidden rounded-xl border border-black/5 bg-white p-6 shadow-sm transition-all hover:shadow-md"
+                        >
+                            <div className="mb-4 flex items-start justify-between">
+                                <div className="rounded-lg bg-gray-50 p-2">
+                                    <Videotape className="h-6 w-6 text-gray-700" />
+                                </div>
+                                {interview.overall_score && (
+                                    <span className="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                                        Score: {interview.overall_score}
+                                    </span>
+                                )}
+                            </div>
+
+                            <h3 className="font-medium text-gray-900">{interview.job_role}</h3>
+                            <p className="mb-4 text-sm text-gray-500">{interview.topic}</p>
+
+                            <div className="mb-4 flex items-center gap-4 text-xs text-gray-400">
+                                <div className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {Math.round(interview.duration_seconds / 60)} mins
+                                </div>
+                                <div>{new Date(interview.created_at).toLocaleDateString()}</div>
+                            </div>
+
+                            <div className="absolute inset-x-0 bottom-0 flex translate-y-full items-center justify-center bg-gray-50 py-3 text-sm font-medium text-gray-900 opacity-0 transition-all group-hover:translate-y-0 group-hover:opacity-100">
+                                View Details <ArrowRight className="ml-2 h-4 w-4" />
+                            </div>
+                        </div>
+                    ))}
+
+                    {!interviews?.length && (
+                        <div className="col-span-full flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50/50 py-12 text-center">
+                            <div className="mb-3 rounded-full bg-gray-100 p-3">
+                                <Star className="h-6 w-6 text-gray-400" />
+                            </div>
+                            <p className="font-medium text-gray-900">No interviews yet</p>
+                            <p className="mt-1 max-w-sm text-sm text-gray-500">
+                                Complete your first interview simulation to see your progress and metrics here.
+                            </p>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
-    );
+    )
 }

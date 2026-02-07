@@ -30,9 +30,9 @@ export function useShadowObserver({
             return;
         }
 
-        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-        // Replace http with ws
-        const wsUrl = apiBaseUrl.replace("http", "ws") + "/ws/shadow";
+        const wsUrl = process.env.NEXT_PUBLIC_WS_URL
+            ? `${process.env.NEXT_PUBLIC_WS_URL}/ws/shadow`
+            : "ws://localhost:8000/ws/shadow";
 
         const ws = new WebSocket(wsUrl);
         socketRef.current = ws;
