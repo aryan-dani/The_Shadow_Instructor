@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
-import { Loader2 } from 'lucide-react'
+import Link from 'next/link'
 
 export default function AuthButton() {
     const [user, setUser] = useState<User | null>(null)
@@ -56,8 +56,11 @@ export default function AuthButton() {
         <div className="flex items-center gap-4">
             {user ? (
                 <div className="flex items-center gap-3">
-                    {/* Avatar */}
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-neutral-700 to-neutral-800 border border-neutral-600 flex items-center justify-center text-xs font-medium overflow-hidden">
+                    {/* Avatar - Clickable to Profile */}
+                    <Link
+                        href="/profile"
+                        className="w-8 h-8 rounded-full bg-linear-to-br from-neutral-700 to-neutral-800 border border-neutral-600 hover:border-neutral-500 flex items-center justify-center text-xs font-medium overflow-hidden transition-colors"
+                    >
                         {user.user_metadata.avatar_url ? (
                             <img
                                 src={user.user_metadata.avatar_url}
@@ -67,10 +70,13 @@ export default function AuthButton() {
                         ) : (
                             (user.user_metadata.full_name || user.email || 'U').charAt(0).toUpperCase()
                         )}
-                    </div>
-                    <span className="text-sm font-medium hidden md:block text-neutral-300">
+                    </Link>
+                    <Link
+                        href="/profile"
+                        className="text-sm font-medium hidden md:block text-neutral-300 hover:text-white transition-colors"
+                    >
                         {user.user_metadata.full_name?.split(' ')[0] || user.email?.split('@')[0]}
-                    </span>
+                    </Link>
                     <button
                         onClick={handleLogout}
                         className="text-neutral-400 hover:text-red-400 border border-neutral-700 hover:border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"

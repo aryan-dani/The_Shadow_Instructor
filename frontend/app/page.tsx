@@ -41,6 +41,7 @@ import { useGeminiLive, GeminiTurn } from "@/hooks/useGeminiLive";
 import { createClient } from "@/utils/supabase/client";
 import { API_BASE_URL } from "@/utils/api";
 import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
 import { FeedbackDashboard } from "@/components/FeedbackDashboard";
 import {
   ParsedResume,
@@ -524,16 +525,7 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
       </main>
 
       {/* ===== FOOTER ===== */}
-      <footer className="mt-auto border-t border-neutral-800 py-6 px-6">
-        <div className="max-w-6xl mx-auto flex items-center justify-center text-neutral-500 text-sm">
-          <a href="/copyright" className="flex items-center gap-2 hover:text-white transition-colors">
-            <GraduationCap className="w-4 h-4" />
-            <span>Shadow Instructor</span>
-          </a>
-          <span className="mx-3">•</span>
-          <span>© 2026</span>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

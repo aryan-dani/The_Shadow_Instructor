@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { GraduationCap, Github } from "lucide-react";
+import { GraduationCap } from "lucide-react";
 import AuthButton from "./AuthButton";
 
 export function Navbar() {
@@ -20,9 +20,6 @@ export function Navbar() {
 
                     {/* Nav Links */}
                     <div className="hidden md:flex items-center gap-1">
-                        <Link href="/" className="px-3 py-1.5 text-sm text-neutral-400 hover:text-white transition-colors rounded-md hover:bg-neutral-800/50">
-                            Interview
-                        </Link>
                         <Link href="/dashboard" className="px-3 py-1.5 text-sm text-neutral-400 hover:text-white transition-colors rounded-md hover:bg-neutral-800/50">
                             Dashboard
                         </Link>
@@ -37,14 +34,6 @@ export function Navbar() {
 
                 {/* Right: Account */}
                 <div className="flex items-center gap-4">
-                    <a
-                        href="https://github.com/aryan-dani/The_Shadow_Instructor"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 text-neutral-400 hover:text-white transition-colors"
-                    >
-                        <Github className="w-5 h-5" />
-                    </a>
                     <AuthButton />
                 </div>
             </div>

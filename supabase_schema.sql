@@ -34,7 +34,8 @@ create table public.interviews (
   overall_score integer, -- 0 to 100
   duration_seconds integer,
   video_url text, -- Store URL if video is uploaded to storage
-  transcript text
+  transcript text,
+  custom_name text -- User-defined name for the interview
 );
 
 -- Set up RLS for interviews
@@ -55,18 +56,28 @@ create policy "Users can insert their own interviews."
   on interviews for insert
   with check ( auth.uid() = user_id );
 
--- Create a secure view for the leaderboard (excludes sensitive data like transcript/video_url)
+create policy "Users can update their own interviews."
+  on interviews for update
+  using ( auth.uid() = user_id );
+
+create policy "Users can delete their own interviews."
+  on interviews for delete
+  using ( auth.uid() = user_id );
+
+-- Create a secure view for the leaderboard (shows only best score per user per role)
 create or replace view public.leaderboard as
-select 
+select distinct on (user_id, job_role)
   id, 
   user_id, 
   created_at, 
   job_role, 
   topic, 
   overall_score, 
-  duration_seconds
+  duration_seconds,
+  custom_name
 from public.interviews
-where overall_score is not null;
+where overall_score is not null
+order by user_id, job_role, overall_score desc;
 
 -- Grant access to the view
 grant select on public.leaderboard to anon, authenticated;
