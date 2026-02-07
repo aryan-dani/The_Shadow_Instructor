@@ -16,7 +16,7 @@
 }
 
 :root {
-  --background: #0f172a;
+  --background: #000000;
   --foreground: #f1f5f9;
   --glass-bg: rgba(30, 41, 59, 0.8);
   --glass-border: rgba(51, 65, 85, 0.5);

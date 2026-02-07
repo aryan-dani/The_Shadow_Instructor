@@ -34,7 +34,8 @@ import {
   Github,
   Shield,
   Cpu,
-  Users
+  Users,
+  Sparkles
 } from "lucide-react";
 import { useGeminiLive, GeminiTurn } from "@/hooks/useGeminiLive";
 import { FeedbackDashboard } from "@/components/FeedbackDashboard";
@@ -45,6 +46,9 @@ import {
   ContentAnalysis,
   QuestionFeedback
 } from "@/types";
+import { useShadowObserver } from "@/hooks/useShadowObserver";
+import { ShadowToast } from "@/components/ShadowToast";
+import Link from "next/link";
 
 // ==================== TYPES ====================
 type ChatMessage = {
@@ -222,6 +226,7 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
   const [difficulty, setDifficulty] =
     useState<InterviewState["difficulty"]>("medium");
 
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
@@ -292,7 +297,6 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
 
   return (
     <div className="min-h-screen bg-black text-white font-sans antialiased selection:bg-white/20 flex flex-col">
-
       {/* ===== NAVBAR ===== */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-neutral-800 bg-black/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -308,14 +312,14 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
 
             {/* Nav Links */}
             <div className="hidden md:flex items-center gap-1">
-              <a href="#" className="px-3 py-1.5 text-sm text-neutral-400 hover:text-white transition-colors rounded-md hover:bg-neutral-800/50">
-                Dashboard
+              <a href="/" className="px-3 py-1.5 text-sm text-white bg-neutral-800 rounded-md">
+                Interview
+              </a>
+              <a href="/resume-analyzer" className="px-3 py-1.5 text-sm text-neutral-400 hover:text-white transition-colors rounded-md hover:bg-neutral-800/50">
+                Resume Analyzer
               </a>
               <a href="#" className="px-3 py-1.5 text-sm text-neutral-400 hover:text-white transition-colors rounded-md hover:bg-neutral-800/50">
                 Leaderboard
-              </a>
-              <a href="#" className="px-3 py-1.5 text-sm text-neutral-400 hover:text-white transition-colors rounded-md hover:bg-neutral-800/50">
-                Docs
               </a>
             </div>
           </div>
@@ -339,8 +343,8 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
       </nav>
 
       {/* ===== MAIN CONTENT ===== */}
-      <main className="pt-32 pb-24 px-6 flex-1">
-        <div className="max-w-5xl mx-auto">
+      <main className="flex-1 flex flex-col justify-center px-6 pt-20 pb-6">
+        <div className="max-w-5xl mx-auto w-full">
 
           {/* Grid - Full Width, Spaced Out */}
           <div className="grid lg:grid-cols-2 gap-8">
@@ -399,7 +403,17 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
                       <div className="flex flex-col items-center gap-2">
                         <CheckCircle className="w-6 h-6 text-white" />
                         <span className="text-sm text-white font-medium truncate max-w-50">{file.name}</span>
-                        <span className="text-xs text-neutral-500">Ready</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFile(null);
+                            setParsedResume(null);
+                            setResumeText("");
+                          }}
+                          className="text-xs text-neutral-500 hover:text-red-400 transition-colors"
+                        >
+                          Remove
+                        </button>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center gap-2 text-neutral-500">
@@ -523,7 +537,7 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.25, ease: "easeOut" }}
-            className="mt-10"
+            className="mt-6"
           >
             <button
               onClick={handleSubmit}
@@ -533,8 +547,9 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
               <span>Start Interview</span>
               <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
+
             {error && (
-              <div className="mt-6 text-center text-red-400 text-sm border border-red-500/20 bg-red-500/10 p-4 rounded-xl">
+              <div className="mt-4 text-center text-red-400 text-sm border border-red-500/20 bg-red-500/10 p-4 rounded-xl">
                 {error}
               </div>
             )}
@@ -576,6 +591,7 @@ function InterviewDashboard({
   } = useGeminiLive();
   const [isMicOn, setIsMicOn] = useState(true);
   const [isCameraOn, setIsCameraOn] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState<"transcript" | "resume">(
     "transcript",
   );
@@ -662,8 +678,17 @@ function InterviewDashboard({
 
   const parsedResume = parseResumeText(interviewData.resumeText);
 
+  // Shadow Observer
+  const latestTranscript = messages.filter(m => m.role === "user").slice(-1)[0]?.content || "";
+  const { feedback } = useShadowObserver({
+    isConnected,
+    videoRef,
+    latestTranscript
+  });
+
   return (
     <div className="h-screen flex flex-col bg-black text-white font-sans antialiased">
+      <ShadowToast feedback={feedback} />
       {/* Top Header - Matching Landing Page */}
       <header className="shrink-0 h-16 border-b border-neutral-800 bg-black/80 backdrop-blur-xl flex items-center justify-between px-6 z-50">
         <div className="flex items-center gap-4">
@@ -694,9 +719,57 @@ function InterviewDashboard({
           </div>
 
           {/* Settings */}
-          <button className="p-2 rounded-lg hover:bg-neutral-800 transition text-neutral-400 hover:text-white">
-            <Settings className="w-4 h-4" />
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className={`p-2 rounded-lg transition ${showSettings ? 'bg-neutral-800 text-white' : 'hover:bg-neutral-800 text-neutral-400 hover:text-white'}`}
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+            {showSettings && (
+              <div className="absolute right-0 top-full mt-2 w-72 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl p-4 z-50">
+                <h3 className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-3">Interview Settings</h3>
+
+                <div className="space-y-3">
+                  {/* Voice */}
+                  <div>
+                    <label className="text-xs text-neutral-500 block mb-1.5">AI Voice</label>
+                    <div className="text-sm text-white bg-neutral-800 px-3 py-2 rounded-lg">
+                      {interviewData.voice}
+                    </div>
+                  </div>
+
+                  {/* Difficulty */}
+                  <div>
+                    <label className="text-xs text-neutral-500 block mb-1.5">Difficulty</label>
+                    <div className="text-sm text-white bg-neutral-800 px-3 py-2 rounded-lg capitalize">
+                      {interviewData.difficulty}
+                    </div>
+                  </div>
+
+                  {/* Persona */}
+                  <div>
+                    <label className="text-xs text-neutral-500 block mb-1.5">Interviewer Style</label>
+                    <div className="text-sm text-white bg-neutral-800 px-3 py-2 rounded-lg capitalize">
+                      {interviewData.persona}
+                    </div>
+                  </div>
+
+                  {/* Shadow Mode Indicator */}
+                  <div className="pt-2 border-t border-neutral-800">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-neutral-500">Shadow Mode</span>
+                      <span className="text-xs text-green-400 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
+                        Active
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-neutral-600 mt-1">Real-time feedback on eye contact & pacing</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 

@@ -5,6 +5,8 @@ from utils.config import config
 import io
 import google.auth
 from google.auth.transport.requests import Request
+import asyncio
+import json
 
 app = FastAPI(title="The Shadow Instructor API")
 
@@ -112,3 +114,78 @@ async def analyze_interview_endpoint(request: AnalysisRequest):
         return report
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# ==================== SHADOW ROUTES ====================
+from app.routers import shadow
+app.include_router(shadow.router)
+
+# ==================== VISUAL ROAST ====================
+@app.post("/analyze-resume-visual")
+async def analyze_resume_visual(
+    file: UploadFile = File(...)
+):
+    """
+    Uploads a PDF, sends it to Gemini 1.5 Pro to visually 'roast' the formatting.
+    """
+    from google import genai
+    from google.genai import types
+    
+    try:
+        content = await file.read()
+        
+        # Initialize Client
+        client = genai.Client(api_key=config.GEMINI_API_KEY)
+        
+        # Upload file to Gemini (Ephemeral upload)
+        # Note: In production, manage file lifecycle. for now, let it auto-expire.
+        # The SDK might expect a path or file-like object. 
+        # API expects 'client.files.upload'
+        
+        start_pdf_upload = await asyncio.to_thread(
+            client.files.upload,
+            file=io.BytesIO(content),
+            config={"mime_type": "application/pdf"}
+        )
+        
+        if not start_pdf_upload.uri:
+            raise ValueError("Failed to upload file to Gemini")
+        
+        prompt = """
+        You are a Professional Resume Design Consultant.
+        Analyze this Resume PDF for visual and formatting quality.
+        
+        Evaluate:
+        1. **Layout & Whitespace**: Is the spacing balanced? Are margins appropriate?
+        2. **Typography**: Are fonts consistent and professional? Is hierarchy clear?
+        3. **Visual Hierarchy**: Is important info easy to find? Are sections clear?
+        4. **Overall Aesthetics**: Does it look modern and polished?
+        
+        Output a JSON object:
+        {
+            "score": 1-10 (10 is excellent),
+            "summary": "A 2-3 sentence professional assessment of the overall design.",
+            "issues": [
+                { "category": "Layout|Typography|Hierarchy|Aesthetics", "description": "What the issue is", "suggestion": "How to fix it" }
+            ],
+            "strengths": ["List of things done well"]
+        }
+        
+        Be constructive and helpful. Focus on actionable improvements.
+        """
+        
+        response = await asyncio.to_thread(
+            client.models.generate_content,
+            model=config.SHADOW_MODEL,
+            contents=[types.Part.from_uri(file_uri=start_pdf_upload.uri, mime_type="application/pdf"), prompt],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
+            )
+        )
+        
+        if response.text is None:
+            raise ValueError("Empty response from Gemini API")
+        return json.loads(response.text)
+        
+    except Exception as e:
+        print(f"Visual Roast Error: {e}")
+        return {"status": "error", "message": str(e)}
