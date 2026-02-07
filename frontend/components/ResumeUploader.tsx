@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { API_BASE_URL } from "../utils/api";
 import {
   Upload,
   FileText,
@@ -40,9 +41,10 @@ export default function ResumeUploader({ onComplete }: ResumeUploaderProps) {
     formData.append("file", file);
     formData.append("role", role);
 
+
+
     try {
-      const apiBaseUrl =
-        process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+      const apiBaseUrl = API_BASE_URL;
       const res = await fetch(`${apiBaseUrl}/upload-resume`, {
         method: "POST",
         body: formData,

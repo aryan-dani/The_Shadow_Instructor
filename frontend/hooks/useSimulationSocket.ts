@@ -17,8 +17,10 @@ export type SimulationState = {
   disconnect: () => void;
 };
 
+import { WS_BASE_URL } from "../utils/api";
+
 export const useSimulationSocket = (
-  baseUrl: string = (process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000") + "/ws/simulation",
+  baseUrl: string = WS_BASE_URL + "/ws/simulation",
   scenario: string,
 ): SimulationState => {
   const [isConnected, setIsConnected] = useState(false);

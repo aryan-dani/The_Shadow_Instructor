@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { WS_BASE_URL } from "../utils/api";
 
 export type ShadowFeedback = {
     type: "feedback";
@@ -30,9 +31,9 @@ export function useShadowObserver({
             return;
         }
 
-        const wsUrl = process.env.NEXT_PUBLIC_WS_URL
-            ? `${process.env.NEXT_PUBLIC_WS_URL}/ws/shadow`
-            : "ws://localhost:8000/ws/shadow";
+
+
+        const wsUrl = `${WS_BASE_URL}/ws/shadow`;
 
         const ws = new WebSocket(wsUrl);
         socketRef.current = ws;

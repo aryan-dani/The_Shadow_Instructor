@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { API_BASE_URL } from "../utils/api";
 
 const GEMINI_URL =
   "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent";
@@ -280,9 +281,11 @@ export function useGeminiLive() {
       disconnect();
 
       try {
+
+
         console.log("Connecting to Gemini Live...");
 
-        const apiBaseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+        const apiBaseUrl = API_BASE_URL;
         const authRes = await fetch(`${apiBaseUrl}/auth/token`);
         const authData = await authRes.json();
         if (!authData.token) throw new Error("Failed to get token");

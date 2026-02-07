@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "../utils/api";
 import { motion } from "framer-motion";
 import { X, AlertTriangle, CheckCircle, FileText, Eye } from "lucide-react";
 
@@ -32,8 +33,10 @@ export function VisualRoastModal({
         const formData = new FormData();
         formData.append("file", uploadedFile);
 
+
+
         try {
-            const apiBaseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+            const apiBaseUrl = API_BASE_URL;
             const res = await fetch(`${apiBaseUrl}/analyze-resume-visual`, {
                 method: "POST",
                 body: formData,

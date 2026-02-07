@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { useGeminiLive, GeminiTurn } from "@/hooks/useGeminiLive";
 import { createClient } from "@/utils/supabase/client";
+import { API_BASE_URL } from "@/utils/api";
 import { Navbar } from "@/components/Navbar";
 import { FeedbackDashboard } from "@/components/FeedbackDashboard";
 import {
@@ -239,8 +240,10 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
       formData.append("file", selectedFile);
       formData.append("role", role || "Software Engineer");
 
+
+
       try {
-        const apiBaseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+        const apiBaseUrl = API_BASE_URL;
         const res = await fetch(`${apiBaseUrl}/upload-resume`, {
           method: "POST",
           body: formData,
@@ -271,7 +274,7 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
     formData.append("role", role);
 
     try {
-      const apiBaseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+      const apiBaseUrl = API_BASE_URL;
       const res = await fetch(`${apiBaseUrl}/upload-resume`, {
         method: "POST",
         body: formData,
