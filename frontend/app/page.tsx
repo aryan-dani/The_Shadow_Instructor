@@ -1103,6 +1103,7 @@ export default function Home() {
   const [conversationHistory, setConversationHistory] = useState<ChatMessage[]>([]);
   const [isClient, setIsClient] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Load state and user on mount
   useEffect(() => {
@@ -1164,7 +1165,7 @@ export default function Home() {
     setIsAnalyzing(true);
 
     try {
-      const res = await fetch("http://localhost:8000/analyze-interview", {
+      const res = await fetch(`${API_BASE_URL}/analyze-interview`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1189,8 +1190,7 @@ export default function Home() {
       setAnalysisResult(data);
     } catch (err) {
       console.error("Analysis failed:", err);
-      // Fallback: Just return to home for now, but in future could show error toast
-      setInterviewData(null);
+      setError("Failed to generate analysis. Please try again.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -1200,10 +1200,39 @@ export default function Home() {
     setInterviewData(null);
     setAnalysisResult(null);
     setConversationHistory([]);
+    setError(null);
     sessionStorage.clear();
   };
 
   if (!isClient) return null; // Prevent hydration mismatch
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6">
+        <div className="bg-neutral-900 border border-red-500/30 rounded-2xl p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-red-500" />
+          </div>
+          <h3 className="text-xl font-semibold mb-2">Analysis Failed</h3>
+          <p className="text-neutral-400 mb-6">{error}</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => handleAnalyze(conversationHistory)}
+              className="px-6 py-2 bg-white text-black font-medium rounded-xl hover:bg-neutral-200 transition"
+            >
+              Retry
+            </button>
+            <button
+              onClick={handleStartNew}
+              className="px-6 py-2 bg-neutral-800 text-white font-medium rounded-xl hover:bg-neutral-700 transition"
+            >
+              Go Home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Render Loading State
   if (isAnalyzing) {
