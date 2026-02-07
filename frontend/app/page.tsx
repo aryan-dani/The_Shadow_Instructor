@@ -880,6 +880,15 @@ function TranscriptPanel({
   messages: ChatMessage[];
   isConnected: boolean;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -887,7 +896,7 @@ function TranscriptPanel({
       exit={{ opacity: 0 }}
       className="h-full flex flex-col"
     >
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 scroll-smooth">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6">
             <div className="w-12 h-12 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center mb-3">
@@ -971,6 +980,7 @@ function TranscriptPanel({
     </motion.div>
   );
 }
+
 
 // ==================== RESUME PANEL (PARSED) ====================
 function ResumePanelParsed({

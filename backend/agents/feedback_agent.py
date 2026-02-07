@@ -152,16 +152,21 @@ IMPORTANT: Return ONLY the JSON object. No markdown, no code blocks, no addition
                 "rate" in error_str
             )
             
-            if is_rate_limit and config.GROQ_API_KEY:
+            if is_rate_limit:
                 print(f"[FeedbackAgent] Gemini rate limited. Falling back to Groq...")
+                
+                if not config.GROQ_API_KEY:
+                    error_msg = "Gemini is rate-limited and GROQ_API_KEY is missing in environment variables."
+                    print(f"[FeedbackAgent] {error_msg}")
+                    # Raise a new error with a clear message for the frontend/logs
+                    raise ValueError(error_msg)
+                
                 try:
                     return await self._call_groq(system_prompt, formatted_history)
                 except Exception as groq_error:
                     print(f"[FeedbackAgent] Groq fallback also failed: {groq_error}")
                     raise groq_error
             else:
-                # Not a rate limit error, or no Groq API key configured
-                if not config.GROQ_API_KEY:
-                    print(f"[FeedbackAgent] Gemini failed and no GROQ_API_KEY configured for fallback")
+                # Not a rate limit error
                 print(f"[FeedbackAgent] Error: {gemini_error}")
                 raise gemini_error
