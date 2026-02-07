@@ -240,7 +240,8 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
       formData.append("role", role || "Software Engineer");
 
       try {
-        const res = await fetch("http://localhost:8000/upload-resume", {
+        const apiBaseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+        const res = await fetch(`${apiBaseUrl}/upload-resume`, {
           method: "POST",
           body: formData,
         });
@@ -270,7 +271,8 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
     formData.append("role", role);
 
     try {
-      const res = await fetch("http://localhost:8000/upload-resume", {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+      const res = await fetch(`${apiBaseUrl}/upload-resume`, {
         method: "POST",
         body: formData,
       });
