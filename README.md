@@ -1,137 +1,135 @@
-The Shadow Instructor
+# The Shadow Instructor
 
-A Dual-Agent AI Interview Simulation Platform
+![Shadow Instructor Banner](https://img.shields.io/badge/Status-Hackathon_Prototype-blue)
+![Gemini 3 Hackathon](https://img.shields.io/badge/Submission-Gemini_3_Hackathon-purple)
+![License](https://img.shields.io/badge/License-MIT-green)
 
-Table of Contents
+> **Master your next interview with your own AI Shadow.**
+>
+> A real-time, dual-agent interview simulation platform powered by Google's Gemini 3.0.
 
-1.  Project Overview
-2.  Problem Statement
-3.  Proposed Solution
-4.  Architecture
-5.  Key Features
-6.  Technology Stack
-7.  Prerequisites
-8.  Installation and Setup
-    8.1. Backend Setup
-    8.2. Frontend Setup
-9.  Usage Guide
-10. Hackathon Submission Details
-11. Contributing
-12. License
+---
 
-13. Project Overview
+## 🎥 Introduction
 
-The Shadow Instructor is a sophisticated live interview simulation platform developed for the "AI for Bharat" Hackathon (https://vision.hack2skill.com/event/ai-for-bharat). It leverages Google's Gemini Multimodal Live API to provide a real-time, voice-first technical interview experience. The system utilizes a unique dual-agent architecture comprising an "Interviewer Agent" that conducts the session and a "Shadow (Instructor) Agent" that provides silent analysis and structured feedback, enabling candidates to practice in a hyper-realistic, low-latency environment tailored to their specific resume and target role.
+**The Shadow Instructor** is a next-generation interview preparation platform that doesn't just simulate an interview—it *shadows* you. By leveraging a unique **Dual-Agent Architecture**, we provide an experience that is both adversarial and supportive:
 
-2. Problem Statement
+1.  **The Interviewer (Gemini 3.0 Flash)**: Conducts a high-pressure, realistic technical interview tailored to your resume.
+2.  **The Shadow (Gemini 3.0 Pro)**: Silently observes the interaction, analyzing your answers, pacing, and confidence in real-time, providing critical "heads-up" feedback without interrupting the flow.
 
-Job seekers, particularly students and early-career professionals, face significant challenges in interview preparation:
+---
 
-- Performance Anxiety: A lack of realistic environments to practice verbal communication under pressure.
-- Generic Feedback: Existing mock interview solutions often provide generic responses that lack technical depth or specificity to the user's background.
-- Context Awareness: Standard AI chatbots fail to tailor questions to the candidate's actual resume or specific job description.
-- Latency Issues: Text-based interactions disrupt the natural flow required for verbal interview practice.
+## 🚀 Gemini 3 Integration
 
-3. Proposed Solution
+This project was built specifically to showcase the capabilities of the **Gemini 3.0** model family.
 
-The Shadow Instructor addresses these issues through a web-based platform that offers:
+### 1. Ultra-Low Latency Conversation (Gemini 3.0 Flash)
+We use **Gemini 3.0 Flash** for the `Interviewer Agent` to achieve near-human response times. The model processes the candidate's audio input and generates relevant, context-aware follow-up questions instantly, maintaining the natural rhythm of a stressful interview.
 
-- Real-time Voice Interaction: Sub-second latency conversation using Gemini 2.5 Flash.
-- Resume Contextualization: Automated parsing of PDF resumes to seed the interview context.
-- Dual-Agent Feedback Loop:
-  - The Interviewer conducts the session, challenging the user on technical concepts.
-  - The Instructor analyzes the transcript to generate a comprehensive scorecard on technical accuracy and communication clarity.
+### 2. Complex Reasoning & analysis (Gemini 3.0 Pro)
+We use **Gemini 3.0 Pro** for the `Shadow Agent`. This agent runs in parallel, processing the full transcript and metadata. It uses Gemini 3's superior reasoning capabilities to:
+- Detect technical inaccuracies in real-time.
+- Analyze communication patterns (rambling, hesitation markers).
+- Generate a comprehensive, structured "Shadow Report" after the session.
 
-4. Architecture
+### 3. Multimodal Context
+The system ingests **PDF Resumes** and parses them to seed the context for both agents, ensuring every question is relevant to the candidate's actual experience.
 
-The system follows a Hybrid Client-Server-Cloud architecture:
+---
 
-- Frontend (Next.js 16): Handles the user interface, audio capture (PCM 16kHz), and direct WebSocket communication with the Gemini API. It manages local audio buffering and implements Voice Activity Detection (VAD) for interruptibility.
-- Backend (FastAPI): Serves as the trust anchor. It handles resume uploads, parses PDF content, and issues short-lived OAuth tokens for the frontend to securely access Google Cloud services.
-- Cloud (Google Gemini):
-  - Gemini 2.5 Flash Native Audio Preview: Powers the low-latency live interview session.
-  - Gemini 3 Pro Preview: Powers the Instructor agent for high-level reasoning and feedback generation.
+## ✨ Key Features
 
-5. Key Features
+- **🎭 Realistic Personas**: Choose your interviewer's style—from "Friendly Recruiter" to "Tough FAANG Engineer".
+- **⚡ Real-Time Feedback**: Receive subtle, ephemeral notifications during the interview (e.g., *"Speak faster"*, *"Make eye contact"*).
+- **📄 Resume Parsing**: Upload your PDF resume, and the AI will grill you on your specific bullet points.
+- **📊 Comprehensive Reports**: Get a detailed breakdown of your performance, including a transcript analysis and actionable tips for improvement.
+- **🔒 Secure Architecture**: Built with privacy in mind, using ephemeral tokens and secure WebSocket connections.
 
-- Resume-Based Personalization: The system extracts text from uploaded resumes to tailor interview questions specifically to the candidate's experience.
-- Low-Latency Voice Interface: Direct WebSocket connection ensures a conversational flow comparable to human interaction.
-- Interruptibility: Users can interrupt the AI at any point, and the system will immediately cease audio output and listen, mimicking natural conversation dynamics.
-- Structured Feedback Reports: Post-interview analysis provides actionable insights into technical strenghts and weaknesses.
-- Secure Architecture: Uses a token-vending pattern to prevent exposure of long-lived API keys on the client side.
+---
 
-6. Technology Stack
+## 🏗️ Architecture
 
-- Frontend: Next.js 16, TypeScript, Tailwind CSS, Web Audio API
-- Backend: Python 3.10+, FastAPI, PyPDF, Google Auth
-- AI Models: Google Gemini 2.5 Flash (Audio), Google Gemini 3 Pro (Text/Reasoning)
-- Infrastructure: Google Cloud Platform (Vertex AI / Generative Language API)
+The system follows a proprietary **Dual-Agent State Machine**:
 
-7. Prerequisites
+```mermaid
+graph TD
+    User((User)) <-->|WebSocket Audio/Text| Frontend[Next.js Frontend]
+    Frontend <-->|Socket.IO| Backend[FastAPI Server]
+    
+    subgraph "The Shadow Brain"
+        Backend -->|Stream| SessionManager[Session Manager]
+        SessionManager -->|Context Window| Agent1[Interviewer Agent<br/>Gemini 3.0 Flash]
+        SessionManager -->|Full History| Agent2[Shadow Agent<br/>Gemini 3.0 Pro]
+    end
+    
+    Agent1 -->|Audio/Text| Backend
+    Agent2 -->|JSON Feedback| Backend
+```
 
-- Node.js v18 or higher
-- Python 3.10 or higher
-- Google Cloud Platform Account with Gemini API enabled
-- A Google Cloud Service Account JSON key (for production) or an API Key (for development)
+---
 
-8. Installation and Setup
+## 🛠️ Technology Stack
 
-8.1. Backend Setup
+- **Frontend**: Next.js 16, TypeScript, Tailwind CSS, Framer Motion
+- **Backend**: Python 3.12, FastAPI, WebSockets
+- **AI Models**: Google Gemini 3.0 Flash, Gemini 3.0 Pro
+- **Infrastructure**: Vercel (Frontend), Render (Backend)
 
-1.  Navigate to the backend directory:
-    cd backend
+---
 
-2.  Create a virtual environment:
-    python -m venv venv
-    source venv/bin/activate # On Windows: venv\Scripts\activate
+## ⚡ Quick Start
 
-3.  Install dependencies:
-    pip install -r requirements.txt
+### Prerequisites
 
-4.  Configure Environment Variables:
-    Create a .env file in the backend directory.
-    Add your GEMINI_API_KEY:
-    GEMINI_API_KEY=your_api_key_here
+- Node.js v18+
+- Python 3.10+
+- Google Cloud API Key (with Gemini API enabled)
 
-5.  Run the server:
-    uvicorn app.main:app --reload
+### 1. Backend Setup
 
-    The backend will start at http://localhost:8000.
+```bash
+cd backend
+python -m venv venv
+# Windows
+.\venv\Scripts\activate
+# Mac/Linux
+source venv/bin/activate
 
-8.2. Frontend Setup
+pip install -r requirements.txt
+```
 
-1.  Navigate to the frontend directory:
-    cd frontend
+Create a `.env` file in the `backend` directory:
+```env
+GEMINI_API_KEY=your_google_api_key
+```
 
-2.  Install dependencies:
-    npm install
+Run the server:
+```bash
+uvicorn app.main:app --reload
+```
 
-3.  Run the development server:
-    npm run dev
+### 2. Frontend Setup
 
-    The application will act as a client at http://localhost:3000.
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-4.  Usage Guide
+Visit `http://localhost:3000` to start your customized interview session!
 
-5.  Open the application in a modern web browser (Chrome or Edge recommended).
-6.  Upload a PDF version of your resume.
-7.  Enter the target job role (e.g., "Senior Backend Engineer").
-8.  Click "Start Interview" to initialize the WebSocket connection.
-9.  Allow microphone permissions when prompted.
-10. Engage in the interview. Speak clearly and naturally.
-11. End the session to view the feedback generated by the Instructor agent.
+---
 
-12. Hackathon Submission Details
+## 🏆 Hackathon Submission
 
-This project is submitted for the "AI for Bharat" Hackathon. It demonstrates the application of Multimodal AI to the domain of Education and Developer Productivity.
+**Project Name**: The Shadow Instructor
+**Track**: Gemini 3 Hackathon
+**Team**: [Your Team Name]
 
-Team: The Shadow Instructor Team
-Repository: https://github.com/aryan-dani/The_Shadow_Instructor
+**Tagline**: *Master your interview with your own AI Shadow.*
 
-11. Contributing
+---
 
-This project is a prototype developed for a hackathon. Contributions are welcome but should be discussed via issues first.
+## 📜 License
 
-12. License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

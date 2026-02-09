@@ -17,6 +17,9 @@ export const metadata: Metadata = {
   title: "Shadow Instructor | AI Interview Coach",
   description:
     "Practice technical interviews with an AI-powered interviewer. Get real-time feedback and improve your skills.",
+  icons: {
+    icon: "/Shadow_Instructor_Logo.png",
+  },
 };
 
 export default function RootLayout({
