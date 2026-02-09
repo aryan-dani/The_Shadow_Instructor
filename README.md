@@ -10,7 +10,7 @@
 
 ---
 
-## 🎥 Introduction
+## Introduction
 
 **The Shadow Instructor** is a next-generation interview preparation platform that doesn't just simulate an interview—it *shadows* you. By leveraging a unique **Dual-Agent Architecture**, we provide an experience that is both adversarial and supportive:
 
@@ -19,7 +19,7 @@
 
 ---
 
-## 🚀 Gemini 3 Integration
+## Gemini 3 Integration
 
 This project was built specifically to showcase the capabilities of the **Gemini 3.0** model family.
 
@@ -37,17 +37,17 @@ The system ingests **PDF Resumes** and parses them to seed the context for both 
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-- **🎭 Realistic Personas**: Choose your interviewer's style—from "Friendly Recruiter" to "Tough FAANG Engineer".
-- **⚡ Real-Time Feedback**: Receive subtle, ephemeral notifications during the interview (e.g., *"Speak faster"*, *"Make eye contact"*).
-- **📄 Resume Parsing**: Upload your PDF resume, and the AI will grill you on your specific bullet points.
-- **📊 Comprehensive Reports**: Get a detailed breakdown of your performance, including a transcript analysis and actionable tips for improvement.
-- **🔒 Secure Architecture**: Built with privacy in mind, using ephemeral tokens and secure WebSocket connections.
+- ** Realistic Personas**: Choose your interviewer's style—from "Friendly Recruiter" to "Tough FAANG Engineer".
+- ** Real-Time Feedback**: Receive subtle, ephemeral notifications during the interview (e.g., *"Speak faster"*, *"Make eye contact"*).
+- ** Resume Parsing**: Upload your PDF resume, and the AI will grill you on your specific bullet points.
+- ** Comprehensive Reports**: Get a detailed breakdown of your performance, including a transcript analysis and actionable tips for improvement.
+- ** Secure Architecture**: Built with privacy in mind, using ephemeral tokens and secure WebSocket connections.
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 The system follows a proprietary **Dual-Agent State Machine**:
 
@@ -68,7 +68,7 @@ graph TD
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 - **Frontend**: Next.js 16, TypeScript, Tailwind CSS, Framer Motion
 - **Backend**: Python 3.12, FastAPI, WebSockets
@@ -77,7 +77,7 @@ graph TD
 
 ---
 
-## ⚡ Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -120,7 +120,7 @@ Visit `http://localhost:3000` to start your customized interview session!
 
 ---
 
-## 🏆 Hackathon Submission
+## Hackathon Submission
 
 **Project Name**: The Shadow Instructor
 **Track**: Gemini 3 Hackathon
@@ -130,6 +130,6 @@ Visit `http://localhost:3000` to start your customized interview session!
 
 ---
 
-## 📜 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
