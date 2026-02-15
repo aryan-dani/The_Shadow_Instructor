@@ -1,13 +1,16 @@
-from google import genai
+from utils.gemini_client import get_gemini_client
 from google.genai import types
 from utils.config import config
 from models.schemas import Message
 from utils.prompts import get_interviewer_prompt
-from typing import List
 
 class InterviewerAgent:
     def __init__(self, scenario: str = "url_shortener", resume_context: str = ""):
-        self.client = genai.Client(api_key=config.GEMINI_API_KEY)
+        self.client = get_gemini_client()
+        # VERIFICATION LOG
+        is_vertex = getattr(self.client, "vertexai", False)
+        print(f"[InterviewerAgent] Initialized. 🟢 Vertex AI: {is_vertex}")
+        
         self.model = config.INTERVIEWER_MODEL
         
         # If resume is provided, override standard prompt with a personalized one
@@ -29,7 +32,7 @@ class InterviewerAgent:
         else:
             self.system_prompt = get_interviewer_prompt(scenario)
         
-    async def generate_response(self, history: List[Message]) -> str:
+    async def generate_response(self, history: list[Message]) -> str:
         # Convert internal history to Gemini format if needed, 
         # or just pass last few messages as prompt context.
         

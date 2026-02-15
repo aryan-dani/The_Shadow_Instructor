@@ -1,17 +1,21 @@
-from google import genai
+from utils.gemini_client import get_gemini_client
 from google.genai import types
 from utils.config import config
 from models.schemas import Message, Feedback
 from utils.prompts import INSTRUCTOR_SYSTEM_PROMPT
-from typing import List, Optional
+from typing import Optional
 import json
 
 class InstructorAgent:
     def __init__(self):
-        self.client = genai.Client(api_key=config.GEMINI_API_KEY)
+        self.client = get_gemini_client()
+        # VERIFICATION LOG
+        is_vertex = getattr(self.client, "vertexai", False)
+        print(f"[InstructorAgent] Initialized. 🟢 Vertex AI: {is_vertex}")
+        
         self.model = config.INSTRUCTOR_MODEL
         
-    async def analyze_and_coach(self, history: List[Message]) -> Optional[str]:
+    async def analyze_and_coach(self, history: list[Message]) -> Optional[str]:
         # The instructor looks at the history and provides feedback.
         # We only want to analyze the *last* user message in context of history
         if not history or history[-1].role != "user":

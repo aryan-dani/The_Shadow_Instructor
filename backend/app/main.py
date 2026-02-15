@@ -58,39 +58,43 @@ async def get_gemini_token():
     """
     import os
     
-    # 1. Try API Key first (preferred for local dev)
+    # 1. Prefer Vertex AI / ADC Token (if configured)
+    # Check if we are set up for Vertex AI
+    if config.GOOGLE_APPLICATION_CREDENTIALS_JSON or os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
+        try:
+            print("Attempting to generate OAuth Token via ADC (Vertex AI)...")
+            SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
+            creds, _ = google.auth.default(scopes=SCOPES)
+            
+            if not creds.valid:
+                creds.refresh(Request())
+                
+            print(f"🟢 Generated OAuth Token via ADC (Scopes: {creds.scopes})")
+            return {
+                "token": creds.token,
+                "type": "bearer",
+                "expires_in": 3600,
+                "project_id": config.GOOGLE_CLOUD_PROJECT,
+                "location": config.GOOGLE_CLOUD_LOCATION
+            }
+        except Exception as e:
+            print(f"⚠️ ADC Token generation failed: {e}. Falling back to API Key if available.")
+
+    # 2. Fallback to API Key
     api_key = config.GEMINI_API_KEY
     if not api_key:
         api_key = os.environ.get("GEMINI_API_KEY")
     
     if api_key:
-        print(f"Using API Key (Length: {len(api_key)})")
+        print(f"🟠 Using API Key (Length: {len(api_key)})")
         return {
             "token": api_key,
             "type": "key",
-            "expires_in": -1
+            "expires_in": -1,
+            "project_id": None,
+            "location": None
         }
-    
-    # 2. Fallback to ADC OAuth (for production / cloud environments)
-    try:
-        SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
-        creds, _ = google.auth.default(scopes=SCOPES)
-        
-        if not creds.valid:
-            creds.refresh(Request())
-            
-        print("Generated OAuth Token via ADC")
-        return {
-            "token": creds.token,
-            "type": "bearer",
-            "expires_in": 3600
-        }
-    except Exception as e:
-        print(f"ADC Token generation failed: {e}")
-        raise HTTPException(
-            status_code=500, 
-            detail="No credentials found. Set GEMINI_API_KEY in backend/.env OR configure Google Cloud ADC."
-        )
+
 
 # Feedback Endpoint
 from agents.feedback_agent import FeedbackAgent
@@ -154,21 +158,39 @@ app.include_router(shadow.router)
 
 # ==================== VISUAL ROAST ====================
 async def _analyze_resume_with_gemini(content: bytes) -> dict:
-    """Analyze resume visually using Gemini (can see the PDF)"""
+    """Analyze resume visually using Gemini (Vertex AI with Service Account)"""
     from google import genai
     from google.genai import types
+    from utils.gemini_client import get_gemini_client
+
+    # Initialize Client using shared utility
+    client = get_gemini_client()
     
-    client = genai.Client(api_key=config.GEMINI_API_KEY)
+    # LOGGING FOR VERIFICATION
+    if getattr(client, "vertexai", False):
+        print(f"[ResumeAnalyzer] 🟢 USING VERTEX AI (Project: {config.GOOGLE_CLOUD_PROJECT}, Location: {config.GOOGLE_CLOUD_LOCATION})")
+    else:
+        print(f"[ResumeAnalyzer] 🟠 USING GOOGLE AI STUDIO (API KEY)")
     
-    start_pdf_upload = await asyncio.to_thread(
-        client.files.upload,
-        file=io.BytesIO(content),
-        config={"mime_type": "application/pdf"}
-    )
+    # Prepare content for Gemini
+    file_part = None
     
-    if not start_pdf_upload.uri:
-        raise ValueError("Failed to upload file to Gemini")
-    
+    if getattr(client, "vertexai", False):
+        # Vertex AI: Use Inline Bytes (File API not supported)
+        print(f"[ResumeAnalyzer] Sending PDF as inline bytes ({len(content)} bytes)...")
+        file_part = types.Part.from_bytes(data=content, mime_type="application/pdf")
+    else:
+        # Google AI Studio: Use File API
+        print(f"[ResumeAnalyzer] Uploading PDF to File API...")
+        start_pdf_upload = await asyncio.to_thread(
+            client.files.upload,
+            file=io.BytesIO(content),
+            config={"mime_type": "application/pdf"}
+        )
+        if not start_pdf_upload.uri:
+             raise ValueError("Failed to upload file to Gemini")
+        file_part = types.Part.from_uri(file_uri=start_pdf_upload.uri, mime_type="application/pdf")
+
     prompt = """
     You are a Professional Resume Design Consultant.
     Analyze this Resume PDF for visual and formatting quality.
@@ -195,7 +217,7 @@ async def _analyze_resume_with_gemini(content: bytes) -> dict:
     response = await asyncio.to_thread(
         client.models.generate_content,
         model=config.SHADOW_MODEL,
-        contents=[types.Part.from_uri(file_uri=start_pdf_upload.uri, mime_type="application/pdf"), prompt],
+        contents=[file_part, prompt],
         config=types.GenerateContentConfig(
             response_mime_type="application/json"
         )
@@ -313,30 +335,3 @@ async def analyze_resume_visual(
         print(f"Visual Roast Error: {e}")
         return {"status": "error", "message": str(e)}
 
-@app.get("/debug-gemini")
-async def debug_gemini_route():
-    """Checks which models are available from the server location."""
-    import google.genai
-    try:
-        if not config.GEMINI_API_KEY:
-             return {"status": "error", "message": "No API Key configured"}
-
-        client = google.genai.Client(api_key=config.GEMINI_API_KEY)
-        
-        results = {}
-        models_to_test = ["gemini-3-flash-preview", "gemini-2.0-flash-exp", "gemini-1.5-flash"]
-        
-        for model in models_to_test:
-            try:
-                # Simple generation test
-                client.models.generate_content(model=model, contents="Hello")
-                results[model] = "✅ AVAILABLE"
-            except Exception as e:
-                results[model] = f"❌ FAILED: {str(e)}"
-                
-        return {
-            "status": "completed",
-            "server_region_check": results
-        }
-    except Exception as e:
-        return {"status": "error", "message": str(e)}

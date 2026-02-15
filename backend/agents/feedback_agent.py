@@ -1,16 +1,20 @@
-from google import genai
+from utils.gemini_client import get_gemini_client
 from google.genai import types
 from utils.config import config
 from models.schemas import Message
 from models.analysis_schema import InterviewAnalysisReport
-from typing import List
+from typing import Any
 import json
 import httpx
 import asyncio
 
 class FeedbackAgent:
     def __init__(self):
-        self.client = genai.Client(api_key=config.GEMINI_API_KEY)
+        self.client = get_gemini_client()
+        # VERIFICATION LOG
+        is_vertex = getattr(self.client, "vertexai", False)
+        print(f"[FeedbackAgent] Initialized. 🟢 Vertex AI: {is_vertex} (Project: {getattr(self.client, '_project', 'N/A')}, Loc: {getattr(self.client, '_location', 'N/A')})")
+        
         self.formatted_model = config.FEEDBACK_MODEL
         
         # Groq fallback client (initialized lazily)
@@ -82,7 +86,7 @@ Output MUST be a valid JSON object with this EXACT structure:
 
 IMPORTANT: Return ONLY the JSON object. No markdown, no code blocks, no additional text."""
     
-    def _format_history(self, history: List[Message]) -> str:
+    def _format_history(self, history: list[Message]) -> str:
         """Format conversation history"""
         formatted = ""
         for msg in history:
@@ -127,7 +131,7 @@ IMPORTANT: Return ONLY the JSON object. No markdown, no code blocks, no addition
         response_text = await asyncio.to_thread(_sync_groq_call)
         return InterviewAnalysisReport.model_validate_json(response_text)
 
-    async def generate_detailed_analysis(self, history: List[Message], role: str) -> InterviewAnalysisReport:
+    async def generate_detailed_analysis(self, history: list[Message], role: str) -> InterviewAnalysisReport:
         """
         Generate detailed interview analysis with automatic fallback.
         Primary: Gemini API

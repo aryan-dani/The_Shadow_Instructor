@@ -1,4 +1,4 @@
-from google import genai
+from utils.gemini_client import get_gemini_client
 from google.genai import types
 from utils.config import config
 import json
@@ -6,8 +6,12 @@ import base64
 
 class ShadowAgent:
     def __init__(self):
-        self.client = genai.Client(api_key=config.GEMINI_API_KEY)
-        self.model = config.SHADOW_MODEL
+        self.client = get_gemini_client(location=config.LIVE_LOCATION)
+        # VERIFICATION LOG
+        is_vertex = getattr(self.client, "vertexai", False)
+        print(f"[ShadowAgent] Initialized. 🟢 Vertex AI: {is_vertex} | Location: {config.LIVE_LOCATION}")
+        
+        self.model = config.LIVE_INTERVIEW_MODEL
 
     async def analyze_frame_and_context(self, base64_image: str, last_transcript: str = "") -> dict:
         """

@@ -18,6 +18,7 @@ export function useGeminiLive() {
   const audioContextRef = useRef<AudioContext | null>(null);
   const workletNodeRef = useRef<AudioWorkletNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const isSetupCompleteRef = useRef(false);
 
   // Audio Output Queue handling (PCM 16 -> Speaker)
   const audioQueueRef = useRef<Int16Array[]>([]);
@@ -134,6 +135,7 @@ export function useGeminiLive() {
     setMessages([]);
     isInterruptedRef.current = false;
     audioQueueRef.current = [];
+    isSetupCompleteRef.current = false;
 
     scheduledSourcesRef.current.forEach((s) => {
       try { s.stop(); } catch (e) { }
@@ -169,6 +171,8 @@ export function useGeminiLive() {
       // Load AudioWorklet module
       await ctx.audioWorklet.addModule("/audio-processor.js");
 
+      if ((ctx.state as string) === "closed" || !audioContextRef.current) return;
+
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
@@ -178,6 +182,12 @@ export function useGeminiLive() {
           autoGainControl: true,
         },
       });
+
+      if ((ctx.state as string) === "closed" || !audioContextRef.current) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
       streamRef.current = stream;
 
       const source = ctx.createMediaStreamSource(stream);
@@ -187,7 +197,7 @@ export function useGeminiLive() {
       let chunkCount = 0;
 
       workletNode.port.onmessage = (event) => {
-        if (ws.readyState !== WebSocket.OPEN) return;
+        if (ws.readyState !== WebSocket.OPEN || !isSetupCompleteRef.current) return;
         if (isMutedRef.current) return;
 
         const inputData = event.data.buffer as Float32Array;
@@ -246,7 +256,7 @@ export function useGeminiLive() {
           realtime_input: {
             media_chunks: [
               {
-                mime_type: "audio/pcm",
+                mime_type: "audio/pcm;rate=16000",
                 data: b64,
               },
             ],
@@ -293,8 +303,31 @@ export function useGeminiLive() {
         const token = authData.token;
         const param = authData.type === "bearer" ? "access_token" : "key";
 
-        const ws = new WebSocket(`${GEMINI_URL}?${param}=${token}`);
+        // Determine WebSocket URL and Model Resource Name
+        let wsUrl = GEMINI_URL;
+        let modelResourceName = "models/gemini-2.0-flash-exp";
+
+        if (authData.project_id && authData.location) {
+          // Vertex AI
+          // Vertex AI
+          // Using strict regional endpoint for gemini-live-2.5-flash-native-audio
+          const loc = "us-central1";
+          const host = `${loc}-aiplatform.googleapis.com`;
+
+          wsUrl = `wss://${host}/ws/google.cloud.aiplatform.v1beta1.LlmBidiService/BidiGenerateContent`;
+          // Full Resource Name: projects/{PROJECT_ID}/locations/{LOCATION}/publishers/google/models/gemini-live-2.5-flash-native-audio
+          const modelId = "gemini-live-2.5-flash-native-audio";
+          modelResourceName = `projects/${authData.project_id}/locations/${loc}/publishers/google/models/${modelId}`;
+
+          console.log("Using Vertex AI WebSocket:", wsUrl);
+        } else {
+          // Google AI Studio
+          console.log("Using Google AI Studio WebSocket:", wsUrl);
+        }
+
+        const ws = new WebSocket(`${wsUrl}?${param}=${token}`);
         socketRef.current = ws;
+        isSetupCompleteRef.current = false;
 
         ws.onopen = () => {
           console.log("Gemini Connected. Sending Setup...");
@@ -362,7 +395,7 @@ STYLE GUIDELINES (STRICT):
 
           const setupMessage = {
             setup: {
-              model: "models/gemini-2.5-flash-native-audio-preview-12-2025",
+              model: modelResourceName,
               generation_config: {
                 response_modalities: ["AUDIO"],
                 speech_config: {
@@ -373,8 +406,6 @@ STYLE GUIDELINES (STRICT):
                   },
                 },
               },
-              input_audio_transcription: {},
-              output_audio_transcription: {},
               system_instruction: {
                 parts: [{ text: systemInstruction }],
               },
@@ -382,24 +413,7 @@ STYLE GUIDELINES (STRICT):
           };
           ws.send(JSON.stringify(setupMessage));
 
-          // Send a trigger message to make AI start speaking first
-          setTimeout(() => {
-            if (ws.readyState === WebSocket.OPEN) {
-              const triggerMessage = {
-                client_content: {
-                  turns: [
-                    {
-                      role: "user",
-                      parts: [{ text: "Begin the interview now. Introduce yourself and ask your first question." }],
-                    },
-                  ],
-                  turn_complete: true,
-                },
-              };
-              ws.send(JSON.stringify(triggerMessage));
-            }
-          }, 500);
-
+          // Start audio and video - but nothing will be sent until isSetupCompleteRef.current is true
           startAudioInput(ws);
 
           // START VIDEO STREAMING
@@ -457,6 +471,26 @@ STYLE GUIDELINES (STRICT):
             }
           } catch (e) {
             console.error("Parse Error", e);
+            return;
+          }
+
+          if (data.setupComplete) {
+            console.log("👻 Gemini Setup Complete");
+            isSetupCompleteRef.current = true;
+
+            // Trigger the first prompt now that setup is complete
+            const triggerMessage = {
+              client_content: {
+                turns: [
+                  {
+                    role: "user",
+                    parts: [{ text: "Begin the interview now. Introduce yourself and ask your first question." }],
+                  },
+                ],
+                turn_complete: true,
+              },
+            };
+            ws.send(JSON.stringify(triggerMessage));
             return;
           }
 
