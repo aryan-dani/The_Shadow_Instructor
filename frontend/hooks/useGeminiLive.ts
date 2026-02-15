@@ -132,7 +132,7 @@ export function useGeminiLive() {
     stopAudioPlayback();
 
     setIsConnected(false);
-    setMessages([]);
+    // setMessages([]); - Removed to preserve transcript for analysis
     isInterruptedRef.current = false;
     audioQueueRef.current = [];
     isSetupCompleteRef.current = false;
@@ -406,6 +406,8 @@ STYLE GUIDELINES (STRICT):
                   },
                 },
               },
+              input_audio_transcription: {},
+              output_audio_transcription: {},
               system_instruction: {
                 parts: [{ text: systemInstruction }],
               },
@@ -474,6 +476,13 @@ STYLE GUIDELINES (STRICT):
             return;
           }
 
+          // DEBUG LOGGING
+          if (data.setupComplete) {
+            console.log("👻 Gemini Setup Complete:", data);
+          } else {
+            console.log("👻 Incoming Message:", JSON.stringify(data, null, 2));
+          }
+
           if (data.setupComplete) {
             console.log("👻 Gemini Setup Complete");
             isSetupCompleteRef.current = true;
@@ -494,7 +503,7 @@ STYLE GUIDELINES (STRICT):
             return;
           }
 
-          const serverContent = data.serverContent;
+          const serverContent = data.serverContent || data.server_content;
           if (serverContent) {
             if (serverContent.interrupted) {
               stopAudioPlayback();
@@ -502,13 +511,18 @@ STYLE GUIDELINES (STRICT):
             }
 
             // Handle audio output
-            if (serverContent.modelTurn) {
-              const parts = serverContent.modelTurn.parts;
+            const modelTurn = serverContent.modelTurn || serverContent.model_turn;
+            if (modelTurn) {
+              const parts = modelTurn.parts;
               for (const part of parts) {
                 if (part.inlineData) {
                   if (isInterruptedRef.current) continue;
                   isPlayingRef.current = true;
                   queueAudioOutput(part.inlineData.data);
+                } else if (part.inline_data) {
+                  if (isInterruptedRef.current) continue;
+                  isPlayingRef.current = true;
+                  queueAudioOutput(part.inline_data.data);
                 }
               }
             }
@@ -517,12 +531,12 @@ STYLE GUIDELINES (STRICT):
             const outputTranscript =
               serverContent.modelTurnTranscription?.text ||
               serverContent.outputTranscription?.text ||
-              serverContent.output_transcription?.text;
+              serverContent.output_transcription?.text ||
+              serverContent.model_turn_transcription?.text;
 
             if (outputTranscript && outputTranscript.trim()) {
               setMessages((prev) => {
                 const lastMsg = prev[prev.length - 1];
-                // Append to last model message if it exists and isn't complete
                 if (lastMsg && lastMsg.role === "model" && !lastMsg.turnComplete) {
                   return [
                     ...prev.slice(0, -1),
@@ -544,7 +558,6 @@ STYLE GUIDELINES (STRICT):
             if (inputTranscript && inputTranscript.trim()) {
               setMessages((prev) => {
                 const lastMsg = prev[prev.length - 1];
-                // Append to last user message if it exists and isn't complete
                 if (lastMsg && lastMsg.role === "user" && !lastMsg.turnComplete) {
                   return [
                     ...prev.slice(0, -1),
@@ -558,10 +571,9 @@ STYLE GUIDELINES (STRICT):
               });
             }
 
-            if (serverContent.turnComplete) {
+            if (serverContent.turnComplete || serverContent.turn_complete) {
               isInterruptedRef.current = false;
               isPlayingRef.current = false;
-              // Mark the last message as turn complete
               setMessages((prev) => {
                 if (prev.length === 0) return prev;
                 const lastMsg = prev[prev.length - 1];
