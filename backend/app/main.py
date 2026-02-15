@@ -296,8 +296,18 @@ async def analyze_resume_visual(
             if is_rate_limit and config.GROQ_API_KEY:
                 print(f"[ResumeAnalyzer] Gemini rate limited. Falling back to Groq (text-based)...")
                 return await _analyze_resume_with_groq(content)
-            else:
-                raise gemini_error
+            
+            # Check for Location/Precondition Error
+            is_location_error = (
+                "400" in error_str and 
+                ("location" in error_str or "precondition" in error_str)
+            )
+
+            if is_location_error and config.GROQ_API_KEY:
+                print(f"[ResumeAnalyzer] Gemini location error (Render region issue). Falling back to Groq (text-based)...")
+                return await _analyze_resume_with_groq(content)
+
+            raise gemini_error
         
     except Exception as e:
         print(f"Visual Roast Error: {e}")

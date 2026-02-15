@@ -1,6 +1,7 @@
 services:
   - type: web
     name: shadow-instructor-backend
+    region: oregon # Fixes Gemini "User location not supported" error
     env: python
     rootDir: backend
     buildCommand: pip install -r requirements.txt
