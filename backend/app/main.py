@@ -312,3 +312,31 @@ async def analyze_resume_visual(
     except Exception as e:
         print(f"Visual Roast Error: {e}")
         return {"status": "error", "message": str(e)}
+
+@app.get("/debug-gemini")
+async def debug_gemini_route():
+    """Checks which models are available from the server location."""
+    import google.genai
+    try:
+        if not config.GEMINI_API_KEY:
+             return {"status": "error", "message": "No API Key configured"}
+
+        client = google.genai.Client(api_key=config.GEMINI_API_KEY)
+        
+        results = {}
+        models_to_test = ["gemini-3-flash-preview", "gemini-2.0-flash-exp", "gemini-1.5-flash"]
+        
+        for model in models_to_test:
+            try:
+                # Simple generation test
+                client.models.generate_content(model=model, contents="Hello")
+                results[model] = "✅ AVAILABLE"
+            except Exception as e:
+                results[model] = f"❌ FAILED: {str(e)}"
+                
+        return {
+            "status": "completed",
+            "server_region_check": results
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
