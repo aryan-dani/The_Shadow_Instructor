@@ -35,7 +35,7 @@ import {
   Shield,
   Cpu,
   Users,
-  Sparkles
+  Sparkles,
 } from "lucide-react";
 import { useGeminiLive, GeminiTurn } from "@/hooks/useGeminiLive";
 import { createClient } from "@/utils/supabase/client";
@@ -48,7 +48,7 @@ import {
   InterviewAnalysisReport,
   SpeechAnalysis,
   ContentAnalysis,
-  QuestionFeedback
+  QuestionFeedback,
 } from "@/types";
 import { useShadowObserver } from "@/hooks/useShadowObserver";
 import { ShadowToast } from "@/components/ShadowToast";
@@ -230,7 +230,6 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
   const [difficulty, setDifficulty] =
     useState<InterviewState["difficulty"]>("medium");
 
-
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
@@ -240,8 +239,6 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
       const formData = new FormData();
       formData.append("file", selectedFile);
       formData.append("role", role || "Software Engineer");
-
-
 
       try {
         const apiBaseUrl = API_BASE_URL;
@@ -308,14 +305,11 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
       {/* ===== NAVBAR ===== */}
       <Navbar />
 
-
       {/* ===== MAIN CONTENT ===== */}
       <main className="flex-1 flex flex-col justify-center px-6 pt-20 pb-6">
         <div className="max-w-5xl mx-auto w-full">
-
           {/* Grid - Full Width, Spaced Out */}
           <div className="grid lg:grid-cols-2 gap-8">
-
             {/* LEFT: Context Setup */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -333,7 +327,9 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
               <div className="space-y-8">
                 {/* Role */}
                 <div className="bg-black/50 border border-neutral-800 rounded-xl p-4">
-                  <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Target Role</label>
+                  <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">
+                    Target Role
+                  </label>
                   <input
                     type="text"
                     value={role}
@@ -345,13 +341,18 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
 
                 {/* Resume Upload */}
                 <div className="bg-black/50 border border-neutral-800 rounded-xl p-4">
-                  <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Resume</label>
+                  <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">
+                    Resume
+                  </label>
                   <div
-                    onClick={() => document.getElementById("file-upload")?.click()}
-                    className={`border border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${file
-                      ? "border-white/30 bg-white/5"
-                      : "border-neutral-700 hover:border-neutral-500 hover:bg-neutral-800/30"
-                      }`}
+                    onClick={() =>
+                      document.getElementById("file-upload")?.click()
+                    }
+                    className={`border border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
+                      file
+                        ? "border-white/30 bg-white/5"
+                        : "border-neutral-700 hover:border-neutral-500 hover:bg-neutral-800/30"
+                    }`}
                   >
                     <input
                       id="file-upload"
@@ -364,12 +365,16 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
                     {isUploading ? (
                       <div className="flex flex-col items-center gap-2">
                         <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span className="text-sm text-neutral-400">Parsing...</span>
+                        <span className="text-sm text-neutral-400">
+                          Parsing...
+                        </span>
                       </div>
                     ) : file ? (
                       <div className="flex flex-col items-center gap-2">
                         <CheckCircle className="w-6 h-6 text-white" />
-                        <span className="text-sm text-white font-medium truncate max-w-50">{file.name}</span>
+                        <span className="text-sm text-white font-medium truncate max-w-50">
+                          {file.name}
+                        </span>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -396,11 +401,16 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
                   <div className="pt-4 border-t border-neutral-800">
                     <div className="flex items-center justify-between text-xs text-neutral-500 mb-3">
                       <span>Extracted Skills</span>
-                      <span className="text-white">{parsedResume.skills.length} found</span>
+                      <span className="text-white">
+                        {parsedResume.skills.length} found
+                      </span>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {parsedResume.skills.slice(0, 5).map((skill, i) => (
-                        <span key={i} className="px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-xs text-neutral-300">
+                        <span
+                          key={i}
+                          className="px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-xs text-neutral-300"
+                        >
                           {skill}
                         </span>
                       ))}
@@ -432,7 +442,9 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
               <div className="space-y-6">
                 {/* Persona */}
                 <div className="bg-black/50 border border-neutral-800 rounded-xl p-4">
-                  <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Interviewer Style</label>
+                  <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">
+                    Interviewer Style
+                  </label>
                   <div className="grid grid-cols-3 gap-2">
                     {[
                       { id: "friendly", label: "Friendly", desc: "Supportive" },
@@ -442,13 +454,18 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
                       <button
                         key={p.id}
                         onClick={() => setPersona(p.id as any)}
-                        className={`p-3 rounded-lg border text-left transition-all ${persona === p.id
-                          ? "bg-white text-black border-white"
-                          : "bg-neutral-800/50 border-neutral-700 hover:border-neutral-500 text-white"
-                          }`}
+                        className={`p-3 rounded-lg border text-left transition-all ${
+                          persona === p.id
+                            ? "bg-white text-black border-white"
+                            : "bg-neutral-800/50 border-neutral-700 hover:border-neutral-500 text-white"
+                        }`}
                       >
                         <div className="font-medium text-sm">{p.label}</div>
-                        <div className={`text-xs mt-0.5 ${persona === p.id ? "text-neutral-600" : "text-neutral-500"}`}>{p.desc}</div>
+                        <div
+                          className={`text-xs mt-0.5 ${persona === p.id ? "text-neutral-600" : "text-neutral-500"}`}
+                        >
+                          {p.desc}
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -456,16 +473,19 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
 
                 {/* Voice */}
                 <div className="bg-black/50 border border-neutral-800 rounded-xl p-4">
-                  <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Voice</label>
+                  <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">
+                    Voice
+                  </label>
                   <div className="flex flex-wrap gap-2">
                     {["Kore", "Charon", "Aoede", "Puck", "Fenrir"].map((v) => (
                       <button
                         key={v}
                         onClick={() => setVoice(v as any)}
-                        className={`px-3 py-2 rounded-lg border text-sm font-medium transition-all ${voice === v
-                          ? "bg-white text-black border-white"
-                          : "bg-transparent border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-white"
-                          }`}
+                        className={`px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
+                          voice === v
+                            ? "bg-white text-black border-white"
+                            : "bg-transparent border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-white"
+                        }`}
                       >
                         {v}
                       </button>
@@ -475,7 +495,9 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
 
                 {/* Difficulty */}
                 <div className="bg-black/50 border border-neutral-800 rounded-xl p-4">
-                  <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Difficulty</label>
+                  <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">
+                    Difficulty
+                  </label>
                   <div className="bg-neutral-900/80 rounded-lg p-1 flex border border-neutral-700">
                     {[
                       { id: "easy", label: "Easy" },
@@ -485,10 +507,11 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
                       <button
                         key={d.id}
                         onClick={() => setDifficulty(d.id as any)}
-                        className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${difficulty === d.id
-                          ? "bg-white text-black"
-                          : "text-neutral-500 hover:text-white"
-                          }`}
+                        className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
+                          difficulty === d.id
+                            ? "bg-white text-black"
+                            : "text-neutral-500 hover:text-white"
+                        }`}
                       >
                         {d.label}
                       </button>
@@ -637,11 +660,12 @@ function InterviewDashboard({
   const parsedResume = parseResumeText(interviewData.resumeText);
 
   // Shadow Observer
-  const latestTranscript = messages.filter(m => m.role === "user").slice(-1)[0]?.content || "";
+  const latestTranscript =
+    messages.filter((m) => m.role === "user").slice(-1)[0]?.content || "";
   const { feedback } = useShadowObserver({
     isConnected,
     videoRef,
-    latestTranscript
+    latestTranscript,
   });
 
   return (
@@ -680,18 +704,22 @@ function InterviewDashboard({
           <div className="relative">
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className={`p-2 rounded-lg transition ${showSettings ? 'bg-neutral-800 text-white' : 'hover:bg-neutral-800 text-neutral-400 hover:text-white'}`}
+              className={`p-2 rounded-lg transition ${showSettings ? "bg-neutral-800 text-white" : "hover:bg-neutral-800 text-neutral-400 hover:text-white"}`}
             >
               <Settings className="w-4 h-4" />
             </button>
             {showSettings && (
               <div className="absolute right-0 top-full mt-2 w-72 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl p-4 z-50">
-                <h3 className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-3">Interview Settings</h3>
+                <h3 className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-3">
+                  Interview Settings
+                </h3>
 
                 <div className="space-y-3">
                   {/* Voice */}
                   <div>
-                    <label className="text-xs text-neutral-500 block mb-1.5">AI Voice</label>
+                    <label className="text-xs text-neutral-500 block mb-1.5">
+                      AI Voice
+                    </label>
                     <div className="text-sm text-white bg-neutral-800 px-3 py-2 rounded-lg">
                       {interviewData.voice}
                     </div>
@@ -699,7 +727,9 @@ function InterviewDashboard({
 
                   {/* Difficulty */}
                   <div>
-                    <label className="text-xs text-neutral-500 block mb-1.5">Difficulty</label>
+                    <label className="text-xs text-neutral-500 block mb-1.5">
+                      Difficulty
+                    </label>
                     <div className="text-sm text-white bg-neutral-800 px-3 py-2 rounded-lg capitalize">
                       {interviewData.difficulty}
                     </div>
@@ -707,7 +737,9 @@ function InterviewDashboard({
 
                   {/* Persona */}
                   <div>
-                    <label className="text-xs text-neutral-500 block mb-1.5">Interviewer Style</label>
+                    <label className="text-xs text-neutral-500 block mb-1.5">
+                      Interviewer Style
+                    </label>
                     <div className="text-sm text-white bg-neutral-800 px-3 py-2 rounded-lg capitalize">
                       {interviewData.persona}
                     </div>
@@ -716,13 +748,17 @@ function InterviewDashboard({
                   {/* Shadow Mode Indicator */}
                   <div className="pt-2 border-t border-neutral-800">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-neutral-500">Shadow Mode</span>
+                      <span className="text-xs text-neutral-500">
+                        Shadow Mode
+                      </span>
                       <span className="text-xs text-green-400 flex items-center gap-1">
                         <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
                         Active
                       </span>
                     </div>
-                    <p className="text-[10px] text-neutral-600 mt-1">Real-time feedback on eye contact & pacing</p>
+                    <p className="text-[10px] text-neutral-600 mt-1">
+                      Real-time feedback on eye contact & pacing
+                    </p>
                   </div>
                 </div>
               </div>
@@ -775,10 +811,11 @@ function InterviewDashboard({
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 z-10">
               <button
                 onClick={() => setIsMicOn(!isMicOn)}
-                className={`p-3.5 rounded-full transition-all border ${isMicOn
-                  ? "bg-neutral-800 hover:bg-neutral-700 text-white border-neutral-700"
-                  : "bg-red-500 hover:bg-red-600 text-white border-red-500"
-                  }`}
+                className={`p-3.5 rounded-full transition-all border ${
+                  isMicOn
+                    ? "bg-neutral-800 hover:bg-neutral-700 text-white border-neutral-700"
+                    : "bg-red-500 hover:bg-red-600 text-white border-red-500"
+                }`}
               >
                 {isMicOn ? (
                   <Mic className="w-5 h-5" />
@@ -789,10 +826,11 @@ function InterviewDashboard({
 
               <button
                 onClick={() => setIsCameraOn(!isCameraOn)}
-                className={`p-3.5 rounded-full transition-all border ${isCameraOn
-                  ? "bg-neutral-800 hover:bg-neutral-700 text-white border-neutral-700"
-                  : "bg-red-500 hover:bg-red-600 text-white border-red-500"
-                  }`}
+                className={`p-3.5 rounded-full transition-all border ${
+                  isCameraOn
+                    ? "bg-neutral-800 hover:bg-neutral-700 text-white border-neutral-700"
+                    : "bg-red-500 hover:bg-red-600 text-white border-red-500"
+                }`}
               >
                 {isCameraOn ? (
                   <Video className="w-5 h-5" />
@@ -818,20 +856,22 @@ function InterviewDashboard({
             <div className="shrink-0 flex border-b border-neutral-800">
               <button
                 onClick={() => setActiveTab("transcript")}
-                className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-medium transition-all ${activeTab === "transcript"
-                  ? "text-white border-b-2 border-white"
-                  : "text-neutral-500 hover:text-neutral-300"
-                  }`}
+                className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-medium transition-all ${
+                  activeTab === "transcript"
+                    ? "text-white border-b-2 border-white"
+                    : "text-neutral-500 hover:text-neutral-300"
+                }`}
               >
                 <MessageSquare className="w-4 h-4" />
                 Transcript
               </button>
               <button
                 onClick={() => setActiveTab("resume")}
-                className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-medium transition-all ${activeTab === "resume"
-                  ? "text-white border-b-2 border-white"
-                  : "text-neutral-500 hover:text-neutral-300"
-                  }`}
+                className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-medium transition-all ${
+                  activeTab === "resume"
+                    ? "text-white border-b-2 border-white"
+                    : "text-neutral-500 hover:text-neutral-300"
+                }`}
               >
                 <FileText className="w-4 h-4" />
                 Resume
@@ -888,7 +928,10 @@ function TranscriptPanel({
       exit={{ opacity: 0 }}
       className="h-full flex flex-col"
     >
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 scroll-smooth">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto p-4 space-y-3 scroll-smooth"
+      >
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6">
             <div className="w-12 h-12 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center mb-3">
@@ -910,17 +953,19 @@ function TranscriptPanel({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2 }}
-              className={`p-3 rounded-xl border ${msg.role === "interviewer"
-                ? "bg-neutral-800/50 border-neutral-700"
-                : "bg-black/50 border-neutral-800"
-                }`}
+              className={`p-3 rounded-xl border ${
+                msg.role === "interviewer"
+                  ? "bg-neutral-800/50 border-neutral-700"
+                  : "bg-black/50 border-neutral-800"
+              }`}
             >
               <div className="flex items-start gap-2.5">
                 <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border ${msg.role === "interviewer"
-                    ? "bg-white/10 border-neutral-600"
-                    : "bg-neutral-800 border-neutral-700"
-                    }`}
+                  className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border ${
+                    msg.role === "interviewer"
+                      ? "bg-white/10 border-neutral-600"
+                      : "bg-neutral-800 border-neutral-700"
+                  }`}
                 >
                   {msg.role === "interviewer" ? (
                     <Bot className="w-3 h-3 text-white" />
@@ -973,7 +1018,6 @@ function TranscriptPanel({
   );
 }
 
-
 // ==================== RESUME PANEL (PARSED) ====================
 function ResumePanelParsed({
   parsedResume,
@@ -1019,16 +1063,23 @@ function ResumePanelParsed({
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4">
         {showRaw ? (
-          <div className="text-xs text-neutral-400 whitespace-pre-wrap font-mono leading-relaxed bg-black/50 p-3 rounded-xl border border-neutral-800">{rawText}</div>
+          <div className="text-xs text-neutral-400 whitespace-pre-wrap font-mono leading-relaxed bg-black/50 p-3 rounded-xl border border-neutral-800">
+            {rawText}
+          </div>
         ) : (
           <div className="space-y-3">
             {/* Skills */}
             {parsedResume.skills.length > 0 && (
               <div className="bg-black/50 border border-neutral-800 rounded-xl p-3">
-                <div className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">Skills</div>
+                <div className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
+                  Skills
+                </div>
                 <div className="flex flex-wrap gap-1.5">
                   {parsedResume.skills.map((skill, i) => (
-                    <span key={i} className="px-2 py-1 rounded-md bg-neutral-800 border border-neutral-700 text-xs text-neutral-300">
+                    <span
+                      key={i}
+                      className="px-2 py-1 rounded-md bg-neutral-800 border border-neutral-700 text-xs text-neutral-300"
+                    >
                       {skill}
                     </span>
                   ))}
@@ -1039,7 +1090,9 @@ function ResumePanelParsed({
             {/* Experience */}
             {parsedResume.experience.length > 0 && (
               <div className="bg-black/50 border border-neutral-800 rounded-xl p-3">
-                <div className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">Experience</div>
+                <div className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
+                  Experience
+                </div>
                 <ul className="text-xs text-neutral-400 space-y-1.5">
                   {parsedResume.experience.map((exp, i) => (
                     <li key={i} className="leading-relaxed">
@@ -1053,7 +1106,9 @@ function ResumePanelParsed({
             {/* Education */}
             {parsedResume.education.length > 0 && (
               <div className="bg-black/50 border border-neutral-800 rounded-xl p-3">
-                <div className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">Education</div>
+                <div className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
+                  Education
+                </div>
                 <ul className="text-xs text-neutral-400 space-y-1.5">
                   {parsedResume.education.map((edu, i) => (
                     <li key={i} className="leading-relaxed">
@@ -1067,7 +1122,9 @@ function ResumePanelParsed({
             {/* Summary */}
             {parsedResume.summary && (
               <div className="bg-black/50 border border-neutral-800 rounded-xl p-3">
-                <div className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">Summary</div>
+                <div className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
+                  Summary
+                </div>
                 <p className="text-xs text-neutral-400 leading-relaxed">
                   {parsedResume.summary}
                 </p>
@@ -1099,10 +1156,15 @@ function ResumePanelParsed({
 
 // ==================== MAIN APP ====================
 export default function Home() {
-  const [interviewData, setInterviewData] = useState<InterviewState | null>(null);
-  const [analysisResult, setAnalysisResult] = useState<InterviewAnalysisReport | null>(null);
+  const [interviewData, setInterviewData] = useState<InterviewState | null>(
+    null,
+  );
+  const [analysisResult, setAnalysisResult] =
+    useState<InterviewAnalysisReport | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [conversationHistory, setConversationHistory] = useState<ChatMessage[]>([]);
+  const [conversationHistory, setConversationHistory] = useState<ChatMessage[]>(
+    [],
+  );
   const [isClient, setIsClient] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -1154,7 +1216,6 @@ export default function Home() {
     }
   }, [analysisResult]);
 
-
   const handleAnalyze = async (messages: ChatMessage[]) => {
     // BUG FIX: Provide minimal feedback if not enough messages
     if (!messages || messages.length < 2) {
@@ -1172,13 +1233,13 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           role: interviewData?.role || "Software Engineer",
-          history: messages.map(m => ({
+          history: messages.map((m) => ({
             role: m.role,
             content: m.content,
-            timestamp: m.timestamp
+            timestamp: m.timestamp,
           })),
-          user_id: userId // Pass the user ID for saving
-        })
+          user_id: userId, // Pass the user ID for saving
+        }),
       });
 
       if (!res.ok) {
@@ -1190,6 +1251,59 @@ export default function Home() {
 
       const data: InterviewAnalysisReport = await res.json();
       setAnalysisResult(data);
+
+      // SAVE TO DATABASE (Decoupled from Backend)
+      if (userId) {
+        try {
+          const supabase = createClient();
+          const transcript = messages
+            .map((m) => `[${m.role.toUpperCase()}]: ${m.content}`)
+            .join("\n");
+
+          const { data: interview, error: intError } = await supabase
+            .from("interviews")
+            .insert({
+              user_id: userId,
+              job_role: interviewData?.role || "Software Engineer",
+              topic: "General Interview",
+              overall_score: data.overall_score,
+              transcript: transcript,
+            })
+            .select()
+            .single();
+
+          if (interview && !intError) {
+            const metrics = [
+              {
+                interview_id: interview.id,
+                metric_name: "Clarity",
+                score: data.speech_analysis.clarity,
+              },
+              {
+                interview_id: interview.id,
+                metric_name: "Conciseness",
+                score: data.speech_analysis.conciseness,
+              },
+              {
+                interview_id: interview.id,
+                metric_name: "Technical Accuracy",
+                score: data.content_analysis.technical_accuracy,
+              },
+              {
+                interview_id: interview.id,
+                metric_name: "Problem Solving",
+                score: data.content_analysis.problem_solving_skills,
+              },
+            ];
+            await supabase.from("interview_metrics").insert(metrics);
+            console.log("Successfully saved report to Supabase");
+          } else {
+            console.error("Supabase Save Error:", intError);
+          }
+        } catch (dbErr) {
+          console.error("Failed to save to Supabase:", dbErr);
+        }
+      }
     } catch (err) {
       console.error("Analysis failed:", err);
       setError("Failed to generate analysis. Please try again.");
@@ -1246,8 +1360,12 @@ export default function Home() {
           className="text-center"
         >
           <div className="w-20 h-20 rounded-full border-4 border-neutral-800 border-t-white animate-spin mx-auto mb-6" />
-          <h2 className="text-xl font-semibold mb-2">Analyzing Your Interview</h2>
-          <p className="text-neutral-500 text-sm">Generating your professional report...</p>
+          <h2 className="text-xl font-semibold mb-2">
+            Analyzing Your Interview
+          </h2>
+          <p className="text-neutral-500 text-sm">
+            Generating your professional report...
+          </p>
         </motion.div>
       </div>
     );

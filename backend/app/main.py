@@ -116,38 +116,6 @@ async def analyze_interview_endpoint(request: AnalysisRequest):
     agent = FeedbackAgent()
     try:
         report = await agent.generate_detailed_analysis(request.history, request.role)
-        
-        # Save to Supabase if user_id is provided
-        if request.user_id:
-            from utils.db import db
-            supabase = db.get_client()
-            if supabase:
-                try:
-                    # 1. Insert Interview
-                    interview_data = {
-                        "user_id": request.user_id,
-                        "job_role": request.role,
-                        "topic": "General Interview", # Can be improved later
-                        "overall_score": report.overall_score,
-                        "transcript": agent._format_history(request.history) 
-                    }
-                    response = supabase.table("interviews").insert(interview_data).execute()
-                    
-                    if response.data and isinstance(response.data, list) and len(response.data) > 0 and isinstance(response.data[0], dict):
-                        interview_id = response.data[0].get("id")
-                        
-                        # 2. Insert Metrics
-                        metrics_data = [
-                            {"interview_id": interview_id, "metric_name": "Clarity", "score": report.speech_analysis.clarity},
-                            {"interview_id": interview_id, "metric_name": "Conciseness", "score": report.speech_analysis.conciseness},
-                            {"interview_id": interview_id, "metric_name": "Technical Accuracy", "score": report.content_analysis.technical_accuracy},
-                            {"interview_id": interview_id, "metric_name": "Problem Solving", "score": report.content_analysis.problem_solving_skills},
-                        ]
-                        supabase.table("interview_metrics").insert(metrics_data).execute()
-                        print(f"Saved interview {interview_id} for user {request.user_id}")
-                except Exception as db_error:
-                    print(f"Failed to save to Supabase: {db_error}")
-
         return report
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
