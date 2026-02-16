@@ -57,19 +57,28 @@ async def get_gemini_token():
     Falls back to Google Cloud ADC (Service Account) for production.
     """
     import os
+    from utils.gemini_client import get_credentials
     
-    # 1. Prefer Vertex AI / ADC Token (if configured)
-    # Check if we are set up for Vertex AI
-    if config.GOOGLE_APPLICATION_CREDENTIALS_JSON or os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
+    # 1. Prefer Vertex AI / SA Token (if configured via JSON)
+    creds = get_credentials()
+    
+    # 1b. Fallback to ADC file if JSON not provided
+    if not creds and os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
         try:
-            print("Attempting to generate OAuth Token via ADC (Vertex AI)...")
+            print("Attempting to generate OAuth Token via default ADC file...")
             SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
             creds, _ = google.auth.default(scopes=SCOPES)
+        except Exception as e:
+            print(f"⚠️ ADC File fallback failed: {e}")
+
+    if creds:
+        try:
+            print("Attempting to generate OAuth Token from Credentials object...")
             
             if not creds.valid:
                 creds.refresh(Request())
                 
-            print(f"🟢 Generated OAuth Token via ADC (Scopes: {creds.scopes})")
+            print(f"🟢 Generated OAuth Token (Scopes: {creds.scopes})")
             return {
                 "token": creds.token,
                 "type": "bearer",
@@ -78,7 +87,7 @@ async def get_gemini_token():
                 "location": config.GOOGLE_CLOUD_LOCATION
             }
         except Exception as e:
-            print(f"⚠️ ADC Token generation failed: {e}. Falling back to API Key if available.")
+            print(f"⚠️ Token generation failed: {e}. Falling back to API Key if available.")
 
     # 2. Fallback to API Key
     api_key = config.GEMINI_API_KEY

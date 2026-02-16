@@ -36,6 +36,7 @@ import {
   Cpu,
   Users,
   Sparkles,
+  Flame,
 } from "lucide-react";
 import { useGeminiLive, GeminiTurn } from "@/hooks/useGeminiLive";
 import { createClient } from "@/utils/supabase/client";
@@ -65,7 +66,7 @@ type InterviewState = {
   role: string;
   resumeText: string;
   fileName: string;
-  persona: "tough" | "friendly" | "faang";
+  persona: "tough" | "friendly" | "faang" | "roast";
   voice: "Puck" | "Charon" | "Kore" | "Aoede" | "Fenrir";
   difficulty: "easy" | "medium" | "hard";
 };
@@ -442,27 +443,41 @@ function LandingPage({ onStart }: { onStart: (data: InterviewState) => void }) {
               <div className="space-y-6">
                 {/* Persona */}
                 <div className="bg-black/50 border border-neutral-800 rounded-xl p-4">
-                  <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">
-                    Interviewer Style
+                  <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3 flex items-center justify-between">
+                    <span>Interviewer Style</span>
+                    {persona === "roast" && (
+                      <span className="flex items-center gap-1 text-[10px] text-orange-500 font-bold animate-pulse">
+                        <Flame className="w-3 h-3" />
+                        BRUTAL MODE
+                      </span>
+                    )}
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
                       { id: "friendly", label: "Friendly", desc: "Supportive" },
                       { id: "tough", label: "Tough", desc: "Direct" },
                       { id: "faang", label: "FAANG", desc: "Technical" },
+                      { id: "roast", label: "Roast", desc: "Ruthless" },
                     ].map((p) => (
                       <button
                         key={p.id}
                         onClick={() => setPersona(p.id as any)}
                         className={`p-3 rounded-lg border text-left transition-all ${
                           persona === p.id
-                            ? "bg-white text-black border-white"
+                            ? p.id === "roast"
+                              ? "bg-orange-600 text-white border-orange-500 shadow-[0_0_15px_rgba(234,88,12,0.4)]"
+                              : "bg-white text-black border-white"
                             : "bg-neutral-800/50 border-neutral-700 hover:border-neutral-500 text-white"
                         }`}
                       >
-                        <div className="font-medium text-sm">{p.label}</div>
+                        <div className="font-medium text-sm flex items-center gap-1.5">
+                          {p.id === "roast" && (
+                            <Flame className="w-3.5 h-3.5" />
+                          )}
+                          {p.label}
+                        </div>
                         <div
-                          className={`text-xs mt-0.5 ${persona === p.id ? "text-neutral-600" : "text-neutral-500"}`}
+                          className={`text-[10px] mt-0.5 ${persona === p.id ? "text-inherit opacity-80" : "text-neutral-500"}`}
                         >
                           {p.desc}
                         </div>
@@ -666,6 +681,7 @@ function InterviewDashboard({
     isConnected,
     videoRef,
     latestTranscript,
+    persona: interviewData.persona,
   });
 
   return (

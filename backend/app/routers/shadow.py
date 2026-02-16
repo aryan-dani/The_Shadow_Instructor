@@ -9,8 +9,8 @@ router = APIRouter()
 shadow_agent = ShadowAgent()
 
 @router.websocket("/ws/shadow")
-async def shadow_websocket(websocket: WebSocket):
-    print(f"👻 Shadow WebSocket Connection Request")
+async def shadow_websocket(websocket: WebSocket, persona: str = "friendly"):
+    print(f"👻 Shadow WebSocket Connection Request | Persona: {persona}")
     await websocket.accept()
     print(f"👻 Shadow WebSocket Accepted")
     
@@ -36,7 +36,7 @@ async def shadow_websocket(websocket: WebSocket):
             if message.get("type") == "frame":
                 # Analyze visual cues
                 try:
-                    analysis = await shadow_agent.analyze_frame_and_context(message.get("data"))
+                    analysis = await shadow_agent.analyze_frame_and_context(message.get("data"), persona=persona)
                     
                     if analysis.get("status") == "alert":
                         response = {
@@ -52,7 +52,7 @@ async def shadow_websocket(websocket: WebSocket):
                 # Analyze text pacing
                 try:
                     text = message.get("text", "")
-                    analysis = await shadow_agent.analyze_pacing(text)
+                    analysis = await shadow_agent.analyze_pacing(text, persona=persona)
                     
                     if analysis.get("status") == "alert":
                         response = {

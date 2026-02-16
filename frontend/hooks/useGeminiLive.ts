@@ -45,7 +45,8 @@ export function useGeminiLive() {
 
   const scheduleAudioQueue = useCallback(() => {
     if (isInterruptedRef.current) return;
-    if (!audioContextRef.current || audioContextRef.current.state === "closed") return;
+    if (!audioContextRef.current || audioContextRef.current.state === "closed")
+      return;
 
     const ctx = audioContextRef.current;
     const now = ctx.currentTime;
@@ -75,7 +76,9 @@ export function useGeminiLive() {
 
         scheduledSourcesRef.current.push(source);
         source.onended = () => {
-          scheduledSourcesRef.current = scheduledSourcesRef.current.filter((s) => s !== source);
+          scheduledSourcesRef.current = scheduledSourcesRef.current.filter(
+            (s) => s !== source,
+          );
         };
       } catch (e) {
         console.error("Audio Schedule Error:", e);
@@ -138,7 +141,9 @@ export function useGeminiLive() {
     isSetupCompleteRef.current = false;
 
     scheduledSourcesRef.current.forEach((s) => {
-      try { s.stop(); } catch (e) { }
+      try {
+        s.stop();
+      } catch (e) {}
     });
     scheduledSourcesRef.current = [];
   }, [stopAudioPlayback, stopAudioInput, isConnected]);
@@ -146,131 +151,142 @@ export function useGeminiLive() {
   // Keep AudioContext active in background
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible" && audioContextRef.current?.state === "suspended") {
+      if (
+        document.visibilityState === "visible" &&
+        audioContextRef.current?.state === "suspended"
+      ) {
         audioContextRef.current.resume();
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
 
-  const startAudioInput = useCallback(async (ws: WebSocket) => {
-    if (audioContextRef.current?.state === "closed") {
-      audioContextRef.current = null;
-    }
-
-    if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
-        sampleRate: 16000,
-      });
-    }
-
-    const ctx = audioContextRef.current;
-
-    try {
-      // Load AudioWorklet module
-      await ctx.audioWorklet.addModule("/audio-processor.js");
-
-      if ((ctx.state as string) === "closed" || !audioContextRef.current) return;
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          sampleRate: 16000,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
-
-      if ((ctx.state as string) === "closed" || !audioContextRef.current) {
-        stream.getTracks().forEach((t) => t.stop());
-        return;
+  const startAudioInput = useCallback(
+    async (ws: WebSocket) => {
+      if (audioContextRef.current?.state === "closed") {
+        audioContextRef.current = null;
       }
 
-      streamRef.current = stream;
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (
+          window.AudioContext || (window as any).webkitAudioContext
+        )({
+          sampleRate: 16000,
+        });
+      }
 
-      const source = ctx.createMediaStreamSource(stream);
-      const workletNode = new AudioWorkletNode(ctx, "audio-input-processor");
-      workletNodeRef.current = workletNode;
+      const ctx = audioContextRef.current;
 
-      let chunkCount = 0;
+      try {
+        // Load AudioWorklet module
+        await ctx.audioWorklet.addModule("/audio-processor.js");
 
-      workletNode.port.onmessage = (event) => {
-        if (ws.readyState !== WebSocket.OPEN || !isSetupCompleteRef.current) return;
-        if (isMutedRef.current) return;
+        if ((ctx.state as string) === "closed" || !audioContextRef.current)
+          return;
 
-        const inputData = event.data.buffer as Float32Array;
-
-        // Voice Activity Detection
-        let sum = 0;
-        for (let i = 0; i < inputData.length; i++) {
-          sum += inputData[i] * inputData[i];
-        }
-        const rms = Math.sqrt(sum / inputData.length);
-
-        if (rms > 0.02) {
-          if (isPlayingRef.current) {
-            stopAudioPlayback();
-            isInterruptedRef.current = true;
-          }
-        }
-
-        // Resample to 16kHz if needed
-        let pcm16: Int16Array;
-        const currentRate = ctx.sampleRate || 16000;
-        const targetRate = 16000;
-
-        if (currentRate !== targetRate) {
-          const ratio = currentRate / targetRate;
-          const newLength = Math.floor(inputData.length / ratio);
-          pcm16 = new Int16Array(newLength);
-
-          for (let i = 0; i < newLength; i++) {
-            const originalIndex = Math.floor(i * ratio);
-            let s = Math.max(-1, Math.min(1, inputData[originalIndex]));
-            pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-          }
-        } else {
-          pcm16 = new Int16Array(inputData.length);
-          for (let i = 0; i < inputData.length; i++) {
-            let s = Math.max(-1, Math.min(1, inputData[i]));
-            pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-          }
-        }
-
-        const uint8 = new Uint8Array(pcm16.buffer);
-        let binary = "";
-        const len = uint8.byteLength;
-        for (let i = 0; i < len; i++) {
-          binary += String.fromCharCode(uint8[i]);
-        }
-        const b64 = window.btoa(binary);
-
-        chunkCount++;
-        if (chunkCount % 50 === 0) {
-          console.log(`Audio Chunk #${chunkCount} | Size: ${b64.length}`);
-        }
-
-        const msg = {
-          realtime_input: {
-            media_chunks: [
-              {
-                mime_type: "audio/pcm;rate=16000",
-                data: b64,
-              },
-            ],
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            channelCount: 1,
+            sampleRate: 16000,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
           },
-        };
-        ws.send(JSON.stringify(msg));
-      };
+        });
 
-      source.connect(workletNode);
-      workletNode.connect(ctx.destination);
-    } catch (e) {
-      console.error("Mic Access Error:", e);
-    }
-  }, [stopAudioPlayback]);
+        if ((ctx.state as string) === "closed" || !audioContextRef.current) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+
+        streamRef.current = stream;
+
+        const source = ctx.createMediaStreamSource(stream);
+        const workletNode = new AudioWorkletNode(ctx, "audio-input-processor");
+        workletNodeRef.current = workletNode;
+
+        let chunkCount = 0;
+
+        workletNode.port.onmessage = (event) => {
+          if (ws.readyState !== WebSocket.OPEN || !isSetupCompleteRef.current)
+            return;
+          if (isMutedRef.current) return;
+
+          const inputData = event.data.buffer as Float32Array;
+
+          // Voice Activity Detection
+          let sum = 0;
+          for (let i = 0; i < inputData.length; i++) {
+            sum += inputData[i] * inputData[i];
+          }
+          const rms = Math.sqrt(sum / inputData.length);
+
+          if (rms > 0.02) {
+            if (isPlayingRef.current) {
+              stopAudioPlayback();
+              isInterruptedRef.current = true;
+            }
+          }
+
+          // Resample to 16kHz if needed
+          let pcm16: Int16Array;
+          const currentRate = ctx.sampleRate || 16000;
+          const targetRate = 16000;
+
+          if (currentRate !== targetRate) {
+            const ratio = currentRate / targetRate;
+            const newLength = Math.floor(inputData.length / ratio);
+            pcm16 = new Int16Array(newLength);
+
+            for (let i = 0; i < newLength; i++) {
+              const originalIndex = Math.floor(i * ratio);
+              let s = Math.max(-1, Math.min(1, inputData[originalIndex]));
+              pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+            }
+          } else {
+            pcm16 = new Int16Array(inputData.length);
+            for (let i = 0; i < inputData.length; i++) {
+              let s = Math.max(-1, Math.min(1, inputData[i]));
+              pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+            }
+          }
+
+          const uint8 = new Uint8Array(pcm16.buffer);
+          let binary = "";
+          const len = uint8.byteLength;
+          for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(uint8[i]);
+          }
+          const b64 = window.btoa(binary);
+
+          chunkCount++;
+          if (chunkCount % 50 === 0) {
+            console.log(`Audio Chunk #${chunkCount} | Size: ${b64.length}`);
+          }
+
+          const msg = {
+            realtime_input: {
+              media_chunks: [
+                {
+                  mime_type: "audio/pcm;rate=16000",
+                  data: b64,
+                },
+              ],
+            },
+          };
+          ws.send(JSON.stringify(msg));
+        };
+
+        source.connect(workletNode);
+        workletNode.connect(ctx.destination);
+      } catch (e) {
+        console.error("Mic Access Error:", e);
+      }
+    },
+    [stopAudioPlayback],
+  );
 
   const connect = useCallback(
     async ({
@@ -279,11 +295,11 @@ export function useGeminiLive() {
       persona,
       voice,
       difficulty,
-      webcamRef
+      webcamRef,
     }: {
       role: string;
       resumeText: string;
-      persona: "tough" | "friendly" | "faang";
+      persona: "tough" | "friendly" | "faang" | "roast";
       voice: "Puck" | "Charon" | "Kore" | "Aoede" | "Fenrir";
       difficulty: "easy" | "medium" | "hard";
       webcamRef?: React.RefObject<HTMLVideoElement | null>;
@@ -291,8 +307,6 @@ export function useGeminiLive() {
       disconnect();
 
       try {
-
-
         console.log("Connecting to Gemini Live...");
 
         const apiBaseUrl = API_BASE_URL;
@@ -339,25 +353,35 @@ export function useGeminiLive() {
 
           switch (persona) {
             case "tough":
-              toneInstruction = "You are a TOUGH, fast-paced technical interviewer. Do not accept vague answers. Interrupt if the candidate is rambling. Be direct and strict.";
+              toneInstruction =
+                "You are a TOUGH, fast-paced technical interviewer. Do not accept vague answers. Interrupt if the candidate is rambling. Be direct and strict.";
               break;
             case "friendly":
-              toneInstruction = "You are a friendly, encouraging senior engineer. Be patient, give helpful hints if they get stuck, and keep the tone warm and collaborative.";
+              toneInstruction =
+                "You are a friendly, encouraging senior engineer. Be patient, give helpful hints if they get stuck, and keep the tone warm and collaborative.";
               break;
             case "faang":
-              toneInstruction = "You are an interviewer at a FAANG company (Google/Meta level). Focus heavily on scalability, edge cases, and algorithmic complexity. Expect high precision.";
+              toneInstruction =
+                "You are an interviewer at a FAANG company (Google/Meta level). Focus heavily on scalability, edge cases, and algorithmic complexity. Expect high precision.";
+              break;
+            case "roast":
+              toneInstruction =
+                "You are in BRUTAL ROAST MODE. Be funny, sarcastic, and absolutely ruthless. Mock their mistakes, laugh at their hesitation, and compare their answers to junior-level code. Your goal is to be a hilarious but mean technical mentor.";
               break;
           }
 
           switch (difficulty) {
             case "easy":
-              focusInstruction = "Ask standard, fundamental questions. If they struggle, guide them to the answer. Avoid complex system design edge cases.";
+              focusInstruction =
+                "Ask standard, fundamental questions. If they struggle, guide them to the answer. Avoid complex system design edge cases.";
               break;
             case "medium":
-              focusInstruction = "Ask practically relevant questions. Expect them to handle standard edge cases. Offer minor hints only if completely stuck.";
+              focusInstruction =
+                "Ask practically relevant questions. Expect them to handle standard edge cases. Offer minor hints only if completely stuck.";
               break;
             case "hard":
-              focusInstruction = "Ask really challenging, deep technical questions. Probe for weakness. Do not give hints. Focus on obscure edge cases and performance optimizations.";
+              focusInstruction =
+                "Ask really challenging, deep technical questions. Probe for weakness. Do not give hints. Focus on obscure edge cases and performance optimizations.";
               break;
           }
 
@@ -376,14 +400,14 @@ YOUR GOAL:
 2. START IMMEDIATELY by introducing yourself (in character) and asking your first question based on their resume.
 3. Then move to a system design or coding challenge fitting the role.
 
-IMPORTANT: Begin speaking as soon as you receive this. Do NOT wait for the candidate to speak first.
-Start with a brief greeting and your first question.
-
-MULTIMODAL CAPABILITIES:
-- You can SEE the candidate via video stream.
-- Pay attention to their non-verbal cues (eye contact, nervousness, smiles, posture).
-- If they look confused or nervous, you can comment on it gently (e.g., "You look a bit unsure, want a hint?").
-- If they are confident and smiling, match their energy.
+MULTIMODAL CAPABILITIES & "SHADOW" MONITORING:
+- You have VISION: You can see the candidate via their webcam.
+- Monitor their Body Language: Slouching, looking away from the camera, or looking nervous.
+- If you notice bad posture or eye contact, address it! 
+  - If Friendly: "Hey, try to look at me, you'll feel more confident!"
+  - If Tough: "Maintain eye contact. It shows confidence."
+  - If Roast: "Are you looking for the answers on the floor? My eyes are up here."
+- If they look nervous or sweaty, use that to adjust your pressure.
 
 STYLE GUIDELINES (STRICT):
 - You are a VOICE-ONLY interface.
@@ -391,6 +415,8 @@ STYLE GUIDELINES (STRICT):
 - Your output must ONLY be the exact words you speak to the candidate.
 - Be concise (under 30 seconds per response).
 - Speak naturally and professionally.
+
+IMPORTANT: Begin speaking as soon as you receive this setup. Do NOT wait for the candidate to speak first. Introduce yourself and dive into the first question.
           `;
 
           const setupMessage = {
@@ -426,17 +452,26 @@ STYLE GUIDELINES (STRICT):
 
             // Send a frame every 500ms (2 FPS) - sufficient for analysis without killing bandwidth
             const videoInterval = setInterval(() => {
-              if (ws.readyState !== WebSocket.OPEN || !videoEl.videoWidth) return;
+              if (ws.readyState !== WebSocket.OPEN || !videoEl.videoWidth)
+                return;
 
               // Draw current frame to canvas (resize to 320px width for efficiency)
               const scale = 320 / videoEl.videoWidth;
               videoCanvas.width = 320;
               videoCanvas.height = videoEl.videoHeight * scale;
 
-              videoCtx?.drawImage(videoEl, 0, 0, videoCanvas.width, videoCanvas.height);
+              videoCtx?.drawImage(
+                videoEl,
+                0,
+                0,
+                videoCanvas.width,
+                videoCanvas.height,
+              );
 
               // Get JPEG base64
-              const base64Image = videoCanvas.toDataURL("image/jpeg", 0.6).split(",")[1];
+              const base64Image = videoCanvas
+                .toDataURL("image/jpeg", 0.6)
+                .split(",")[1];
 
               const msg = {
                 realtime_input: {
@@ -493,7 +528,11 @@ STYLE GUIDELINES (STRICT):
                 turns: [
                   {
                     role: "user",
-                    parts: [{ text: "Begin the interview now. Introduce yourself and ask your first question." }],
+                    parts: [
+                      {
+                        text: "Begin the interview now. Introduce yourself and ask your first question.",
+                      },
+                    ],
                   },
                 ],
                 turn_complete: true,
@@ -511,7 +550,8 @@ STYLE GUIDELINES (STRICT):
             }
 
             // Handle audio output
-            const modelTurn = serverContent.modelTurn || serverContent.model_turn;
+            const modelTurn =
+              serverContent.modelTurn || serverContent.model_turn;
             if (modelTurn) {
               const parts = modelTurn.parts;
               for (const part of parts) {
@@ -537,15 +577,26 @@ STYLE GUIDELINES (STRICT):
             if (outputTranscript && outputTranscript.trim()) {
               setMessages((prev) => {
                 const lastMsg = prev[prev.length - 1];
-                if (lastMsg && lastMsg.role === "model" && !lastMsg.turnComplete) {
+                if (
+                  lastMsg &&
+                  lastMsg.role === "model" &&
+                  !lastMsg.turnComplete
+                ) {
                   return [
                     ...prev.slice(0, -1),
-                    { ...lastMsg, text: (lastMsg.text || "") + " " + outputTranscript },
+                    {
+                      ...lastMsg,
+                      text: (lastMsg.text || "") + " " + outputTranscript,
+                    },
                   ];
                 }
                 return [
                   ...prev,
-                  { role: "model", text: outputTranscript, timestamp: Date.now() },
+                  {
+                    role: "model",
+                    text: outputTranscript,
+                    timestamp: Date.now(),
+                  },
                 ];
               });
             }
@@ -558,15 +609,26 @@ STYLE GUIDELINES (STRICT):
             if (inputTranscript && inputTranscript.trim()) {
               setMessages((prev) => {
                 const lastMsg = prev[prev.length - 1];
-                if (lastMsg && lastMsg.role === "user" && !lastMsg.turnComplete) {
+                if (
+                  lastMsg &&
+                  lastMsg.role === "user" &&
+                  !lastMsg.turnComplete
+                ) {
                   return [
                     ...prev.slice(0, -1),
-                    { ...lastMsg, text: (lastMsg.text || "") + " " + inputTranscript },
+                    {
+                      ...lastMsg,
+                      text: (lastMsg.text || "") + " " + inputTranscript,
+                    },
                   ];
                 }
                 return [
                   ...prev,
-                  { role: "user", text: inputTranscript, timestamp: Date.now() },
+                  {
+                    role: "user",
+                    text: inputTranscript,
+                    timestamp: Date.now(),
+                  },
                 ];
               });
             }
@@ -601,7 +663,14 @@ STYLE GUIDELINES (STRICT):
         stopAudioPlayback();
       }
     },
-    [scheduleAudioQueue, queueAudioOutput, stopAudioPlayback, disconnect, startAudioInput, stopAudioInput],
+    [
+      scheduleAudioQueue,
+      queueAudioOutput,
+      stopAudioPlayback,
+      disconnect,
+      startAudioInput,
+      stopAudioInput,
+    ],
   );
 
   const setMicMuted = useCallback((muted: boolean) => {

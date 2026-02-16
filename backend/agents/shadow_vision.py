@@ -13,13 +13,23 @@ class ShadowAgent:
         
         self.model = config.LIVE_INTERVIEW_MODEL
 
-    async def analyze_frame_and_context(self, base64_image: str, last_transcript: str = "") -> dict:
+    async def analyze_frame_and_context(self, base64_image: str, last_transcript: str = "", persona: str = "friendly") -> dict:
         """
         Analyzes a single video frame for non-verbal cues (eye contact, posture).
         Also considers the last spoke transcript to check for anxiety/rambling visually + verbally.
         """
-        prompt = """
-        You are "The Shadow", a real-time interview coach.
+        tone_instruction = "Be helpful and encouraging."
+        if persona == "tough":
+            tone_instruction = "Be direct and stern. Focus on professional presence."
+        elif persona == "faang":
+            tone_instruction = "Focus on leadership principles and high-bar confidence."
+        elif persona == "roast":
+            tone_instruction = "Be sarcastic and ruthless. Mock their posture or lack of eye contact."
+
+        prompt = f"""
+        You are "The Shadow", a real-time interview coach. 
+        Your current persona is: {persona}. {tone_instruction}
+        
         Analyze this webcam frame of a candidate during a technical interview.
         
         Check for:
@@ -28,14 +38,14 @@ class ShadowAgent:
         3. **Expression**: Nervous? Confident? Bored?
         
         Output a JSON object with this EXACT schema:
-        {
+        {{
             "status": "ok" | "alert",
-            "message": "Brief advice" (e.g. "Maintain eye contact", "Sit up straight", "Smile more", "You look nervous - breathe"),
+            "message": "Brief advice in your persona style" (e.g. Friendly: "Sit up!", Roast: "Stop slouching like a wet noodle"),
             "confidence": 0-1
-        }
+        }}
         
         Only return "alert" if there is a CLEAR issue. If they look fine, status is "ok", message is null or empty.
-        Be lenient. Only flag obvious bad habits.
+        Be concise. Max 7 words.
         """
         
         try:
@@ -67,19 +77,24 @@ class ShadowAgent:
             print(f"Shadow Vision Error: {e}")
             return {"status": "error"}
 
-    async def analyze_pacing(self, transcript_chunk: str) -> dict:
+    async def analyze_pacing(self, transcript_chunk: str, persona: str = "friendly") -> dict:
         """
         Analyzes a chunk of text for rambling.
         """
         if len(transcript_chunk.split()) < 30:
             return {"status": "ok"} # Too short
+
+        tone_instruction = "Be helpful."
+        if persona == "roast":
+            tone_instruction = "Be mean and funny. Tell them they are boring you to death."
             
         prompt = f"""
         Analyze this spoken transcript for "Rambling".
+        Current Persona: {persona}. {tone_instruction}
         Text: "{transcript_chunk}"
         
         Is the speaker repeating themselves, going off-topic, or using excessive filler words?
-        Output JSON: {{ "status": "alert"|"ok", "message": "Summarize your point"|"Stop rambling" }}
+        Output JSON: {{ "status": "alert"|"ok", "message": "Summarize your point in your persona style" }}
         """
         
         try:
