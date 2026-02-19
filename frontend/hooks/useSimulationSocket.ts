@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-// Types based on backend/models/schemas.py
 export type Message = {
   role: "user" | "interviewer" | "instructor";
   content: string;
@@ -9,8 +8,8 @@ export type Message = {
 
 export type SimulationState = {
   isConnected: boolean;
-  messages: Message[]; // Chat history (User + Interviewer)
-  instructorFeedback: Message[]; // Shadow comments
+  messages: Message[];
+  instructorFeedback: Message[];
   sendMessage: (content: string) => void;
   sendAudio: (data: Blob) => void;
   connect: () => void;
@@ -71,7 +70,7 @@ export const useSimulationSocket = (
         source.start(startTime);
         nextStartTimeRef.current = startTime + buffer.duration;
       } catch (e) {
-        console.error("Error playing audio chunk", e);
+        console.error("Audio playback error:", e);
       }
     },
     [initAudioContext],
@@ -84,17 +83,12 @@ export const useSimulationSocket = (
 
       const userMsg: Message = { role: "user", content, timestamp: Date.now() };
       setMessages((prev) => [...prev, userMsg]);
-    } else {
-      console.error("WebSocket is not connected");
     }
   }, []);
 
   const sendAudio = useCallback((data: Blob) => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      console.log("📤 Sending Audio Blob:", data.size, "bytes to Backend");
       socketRef.current.send(data);
-    } else {
-      console.warn("⚠️ Cannot send audio: Socket not open");
     }
   }, []);
 
@@ -106,7 +100,6 @@ export const useSimulationSocket = (
     socketRef.current = ws;
 
     ws.onopen = () => {
-      console.log("Connected to Shadow Instructor Simulation");
       setIsConnected(true);
     };
 
@@ -130,19 +123,17 @@ export const useSimulationSocket = (
         } else {
           setMessages((prev) => [...prev, incomingMessage]);
         }
-      } catch (error) {
-        console.error("Failed to parse WebSocket message:", error);
+      } catch (e) {
+        // Ignore parse errors
       }
     };
 
     ws.onclose = () => {
-      console.log("Disconnected from Shadow Instructor Simulation");
       setIsConnected(false);
       socketRef.current = null;
     };
 
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
+    ws.onerror = () => {
       setIsConnected(false);
     };
   }, [baseUrl, scenario, playAudioChunk]);
@@ -177,7 +168,7 @@ export const useSimulationSocket = (
     messages,
     instructorFeedback,
     sendMessage,
-    sendAudio, // Exported new function
+    sendAudio,
     connect,
     disconnect,
   };

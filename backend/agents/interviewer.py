@@ -2,42 +2,27 @@ from utils.gemini_client import get_gemini_client
 from google.genai import types
 from utils.config import config
 from models.schemas import Message
-from utils.prompts import get_interviewer_prompt
+from utils.prompts import get_interviewer_prompt, build_live_system_instruction, ANTI_HALLUCINATION_RULES
+
 
 class InterviewerAgent:
     def __init__(self, scenario: str = "url_shortener", resume_context: str = ""):
         self.client = get_gemini_client()
-        # VERIFICATION LOG
-        is_vertex = getattr(self.client, "vertexai", False)
-        print(f"[InterviewerAgent] Initialized. 🟢 Vertex AI: {is_vertex}")
-        
         self.model = config.INTERVIEWER_MODEL
-        
-        # If resume is provided, override standard prompt with a personalized one
+
         if resume_context:
-            self.system_prompt = f"""
-            You are an expert technical interviewer at a top-tier tech company.
-            You are interviewing a candidate for the role of: {scenario}.
-            
-            CANDIDATE STARTING CONTEXT (RESUME HIGHLIGHTS):
-            {resume_context[:5000]} # Truncate to avoid context limit issues initially
-            
-            YOUR GOAL:
-            1. Conduct a rigorous but fair technical interview based on the role.
-            2. Start by briefly validating 1-2 key items from their resume to build rapport.
-            3. Then move quickly to a relevant system design or coding challenge fitting the role.
-            4. Be professional, concise, and conversational. 
-            5. Since this is a Voice/Video interview, do NOT output markdown code blocks unless absolutely necessary. Keep responses spoken-word friendly (short sentences).
-            """
+            self.system_prompt = build_live_system_instruction(
+                role=scenario,
+                resume_text=resume_context,
+                persona="friendly",
+                difficulty="medium",
+            )
         else:
             self.system_prompt = get_interviewer_prompt(scenario)
-        
+
     async def generate_response(self, history: list[Message]) -> str:
-        # Convert internal history to Gemini format if needed, 
-        # or just pass last few messages as prompt context.
-        
         formatted_history = "\n".join([f"{msg.role}: {msg.content}" for msg in history])
-        
+
         try:
             response = self.client.models.generate_content(
                 model=self.model,
@@ -49,6 +34,5 @@ class InterviewerAgent:
             )
             return response.text or "I apologize, could you repeat that?"
         except Exception as e:
-            print(f"Error generating interviewer response: {e}")
+            print(f"[InterviewerAgent] Error: {e}")
             return "I apologize, let's move on to the next topic."
-

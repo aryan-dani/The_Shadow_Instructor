@@ -1,15 +1,43 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { API_BASE_URL } from "../utils/api";
 
-const GEMINI_URL =
-  "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent";
-
 export type GeminiTurn = {
   role: "user" | "model" | "system";
   text?: string;
   timestamp: number;
   turnComplete?: boolean;
 };
+
+// ==================== PERSONA & DIFFICULTY MAPS ====================
+const PERSONA_INSTRUCTIONS: Record<string, string> = {
+  tough:
+    "You are a STRICT, fast-paced technical interviewer. Do not accept vague, incomplete, or one-word answers. If the candidate says something generic like 'sure' or 'yes', immediately ask them to elaborate with specifics. Be direct and demanding.",
+  friendly:
+    "You are a warm, encouraging senior engineer. Be patient and collaborative. If the candidate gets stuck, offer gentle hints. Keep the tone supportive — but still require them to articulate their thoughts clearly.",
+  faang:
+    "You are a FAANG bar-raiser (Google/Meta level). Focus on scalability, edge cases, algorithmic complexity, and production readiness. Expect precise, structured answers. One-word responses are unacceptable.",
+  roast:
+    "You are in BRUTAL ROAST MODE. Be hilariously sarcastic and ruthless. Mock vague answers, laugh at hesitation, and deliver savage one-liners. If they say 'sure' without explaining anything, roast them for it.",
+};
+
+const DIFFICULTY_INSTRUCTIONS: Record<string, string> = {
+  easy:
+    "Ask standard, foundational questions. Guide the candidate step-by-step if they struggle. Avoid complex edge cases.",
+  medium:
+    "Ask practically relevant questions. Expect them to handle standard edge cases and trade-offs. Offer minor hints only if completely stuck.",
+  hard:
+    "Ask deep, challenging questions that probe for expertise. Focus on obscure edge cases and performance optimization. Do not give hints.",
+};
+
+const ANTI_HALLUCINATION_RULES = `
+CRITICAL RULES — DO NOT VIOLATE:
+1. NEVER infer, assume, or fabricate technical concepts the candidate did not explicitly say.
+2. If the candidate gives a vague or one-word answer (e.g., "sure", "yeah", "okay", "chaur"), DO NOT treat it as a valid technical response. Instead, ask them to elaborate: "Can you explain what you mean?" or "Walk me through your thinking."
+3. NEVER say things like "Great, so you'd use X" unless the candidate explicitly mentioned X by name.
+4. Only acknowledge and evaluate technical concepts the candidate has EXPLICITLY stated in their own words.
+5. If the candidate is silent or gives non-technical answers, note the lack of response. Do NOT fill gaps with assumed knowledge.
+6. Your assessment must be based SOLELY on what was actually spoken, never on what could theoretically be inferred from their resume.
+`.trim();
 
 export function useGeminiLive() {
   const [isConnected, setIsConnected] = useState(false);
@@ -20,7 +48,7 @@ export function useGeminiLive() {
   const streamRef = useRef<MediaStream | null>(null);
   const isSetupCompleteRef = useRef(false);
 
-  // Audio Output Queue handling (PCM 16 -> Speaker)
+  // Audio Output Queue
   const audioQueueRef = useRef<Int16Array[]>([]);
   const isPlayingRef = useRef(false);
   const nextStartTimeRef = useRef(0);
@@ -81,7 +109,7 @@ export function useGeminiLive() {
           );
         };
       } catch (e) {
-        console.error("Audio Schedule Error:", e);
+        console.error("Audio schedule error:", e);
       }
     }
   }, []);
@@ -116,15 +144,13 @@ export function useGeminiLive() {
       workletNodeRef.current = null;
     }
     if (audioContextRef.current && audioContextRef.current.state !== "closed") {
-      audioContextRef.current.close().catch(console.error);
+      audioContextRef.current.close().catch(() => { });
       audioContextRef.current = null;
     }
   }, []);
 
   const disconnect = useCallback(() => {
     if (!isConnected && !socketRef.current) return;
-
-    console.log("Disconnecting...");
 
     if (socketRef.current) {
       socketRef.current.close();
@@ -135,7 +161,6 @@ export function useGeminiLive() {
     stopAudioPlayback();
 
     setIsConnected(false);
-    // setMessages([]); - Removed to preserve transcript for analysis
     isInterruptedRef.current = false;
     audioQueueRef.current = [];
     isSetupCompleteRef.current = false;
@@ -143,7 +168,7 @@ export function useGeminiLive() {
     scheduledSourcesRef.current.forEach((s) => {
       try {
         s.stop();
-      } catch (e) {}
+      } catch (e) { }
     });
     scheduledSourcesRef.current = [];
   }, [stopAudioPlayback, stopAudioInput, isConnected]);
@@ -180,7 +205,6 @@ export function useGeminiLive() {
       const ctx = audioContextRef.current;
 
       try {
-        // Load AudioWorklet module
         await ctx.audioWorklet.addModule("/audio-processor.js");
 
         if ((ctx.state as string) === "closed" || !audioContextRef.current)
@@ -206,8 +230,6 @@ export function useGeminiLive() {
         const source = ctx.createMediaStreamSource(stream);
         const workletNode = new AudioWorkletNode(ctx, "audio-input-processor");
         workletNodeRef.current = workletNode;
-
-        let chunkCount = 0;
 
         workletNode.port.onmessage = (event) => {
           if (ws.readyState !== WebSocket.OPEN || !isSetupCompleteRef.current)
@@ -261,11 +283,6 @@ export function useGeminiLive() {
           }
           const b64 = window.btoa(binary);
 
-          chunkCount++;
-          if (chunkCount % 50 === 0) {
-            console.log(`Audio Chunk #${chunkCount} | Size: ${b64.length}`);
-          }
-
           const msg = {
             realtime_input: {
               media_chunks: [
@@ -282,7 +299,7 @@ export function useGeminiLive() {
         source.connect(workletNode);
         workletNode.connect(ctx.destination);
       } catch (e) {
-        console.error("Mic Access Error:", e);
+        console.error("Mic access error:", e);
       }
     },
     [stopAudioPlayback],
@@ -307,117 +324,60 @@ export function useGeminiLive() {
       disconnect();
 
       try {
-        console.log("Connecting to Gemini Live...");
-
-        const apiBaseUrl = API_BASE_URL;
-        const authRes = await fetch(`${apiBaseUrl}/auth/token`);
+        const authRes = await fetch(`${API_BASE_URL}/auth/token`);
         const authData = await authRes.json();
-        if (!authData.token) throw new Error("Failed to get token");
+        if (!authData.token) throw new Error("Failed to get auth token");
 
-        const token = authData.token;
-        const param = authData.type === "bearer" ? "access_token" : "key";
+        // Vertex AI only
+        const loc = "us-central1";
+        const host = `${loc}-aiplatform.googleapis.com`;
+        const wsUrl = `wss://${host}/ws/google.cloud.aiplatform.v1beta1.LlmBidiService/BidiGenerateContent`;
+        const modelId = "gemini-live-2.5-flash-native-audio";
+        const modelResourceName = `projects/${authData.project_id}/locations/${loc}/publishers/google/models/${modelId}`;
 
-        // Determine WebSocket URL and Model Resource Name
-        let wsUrl = GEMINI_URL;
-        let modelResourceName = "models/gemini-2.0-flash-exp";
-
-        if (authData.project_id && authData.location) {
-          // Vertex AI
-          // Vertex AI
-          // Using strict regional endpoint for gemini-live-2.5-flash-native-audio
-          const loc = "us-central1";
-          const host = `${loc}-aiplatform.googleapis.com`;
-
-          wsUrl = `wss://${host}/ws/google.cloud.aiplatform.v1beta1.LlmBidiService/BidiGenerateContent`;
-          // Full Resource Name: projects/{PROJECT_ID}/locations/{LOCATION}/publishers/google/models/gemini-live-2.5-flash-native-audio
-          const modelId = "gemini-live-2.5-flash-native-audio";
-          modelResourceName = `projects/${authData.project_id}/locations/${loc}/publishers/google/models/${modelId}`;
-
-          console.log("Using Vertex AI WebSocket:", wsUrl);
-        } else {
-          // Google AI Studio
-          console.log("Using Google AI Studio WebSocket:", wsUrl);
-        }
-
-        const ws = new WebSocket(`${wsUrl}?${param}=${token}`);
+        const ws = new WebSocket(`${wsUrl}?access_token=${authData.token}`);
         socketRef.current = ws;
         isSetupCompleteRef.current = false;
 
         ws.onopen = () => {
-          console.log("Gemini Connected. Sending Setup...");
           setIsConnected(true);
 
-          // Generate dynamic system instruction based on config
-          let toneInstruction = "";
-          let focusInstruction = "";
+          // Build dynamic system instruction from persona/difficulty maps
+          const personaInstruction =
+            PERSONA_INSTRUCTIONS[persona] || PERSONA_INSTRUCTIONS["friendly"];
+          const difficultyInstruction =
+            DIFFICULTY_INSTRUCTIONS[difficulty] || DIFFICULTY_INSTRUCTIONS["medium"];
 
-          switch (persona) {
-            case "tough":
-              toneInstruction =
-                "You are a TOUGH, fast-paced technical interviewer. Do not accept vague answers. Interrupt if the candidate is rambling. Be direct and strict.";
-              break;
-            case "friendly":
-              toneInstruction =
-                "You are a friendly, encouraging senior engineer. Be patient, give helpful hints if they get stuck, and keep the tone warm and collaborative.";
-              break;
-            case "faang":
-              toneInstruction =
-                "You are an interviewer at a FAANG company (Google/Meta level). Focus heavily on scalability, edge cases, and algorithmic complexity. Expect high precision.";
-              break;
-            case "roast":
-              toneInstruction =
-                "You are in BRUTAL ROAST MODE. Be funny, sarcastic, and absolutely ruthless. Mock their mistakes, laugh at their hesitation, and compare their answers to junior-level code. Your goal is to be a hilarious but mean technical mentor.";
-              break;
-          }
+          const systemInstruction = `You are an expert technical interviewer conducting a live voice interview.
+Role being interviewed for: ${role}
 
-          switch (difficulty) {
-            case "easy":
-              focusInstruction =
-                "Ask standard, fundamental questions. If they struggle, guide them to the answer. Avoid complex system design edge cases.";
-              break;
-            case "medium":
-              focusInstruction =
-                "Ask practically relevant questions. Expect them to handle standard edge cases. Offer minor hints only if completely stuck.";
-              break;
-            case "hard":
-              focusInstruction =
-                "Ask really challenging, deep technical questions. Probe for weakness. Do not give hints. Focus on obscure edge cases and performance optimizations.";
-              break;
-          }
+INTERVIEWER PERSONA:
+${personaInstruction}
 
-          const systemInstruction = `
-You are an expert technical interviewer at a top tech company.
-You are interviewing the candidate for the role of: ${role}.
+DIFFICULTY:
+${difficultyInstruction}
 
-Your Persona: ${toneInstruction}
-Difficulty Level: ${focusInstruction}
-
-CANDIDATE STARTING CONTEXT (RESUME HIGHLIGHTS):
+CANDIDATE RESUME (for context only — do NOT assume they know everything listed):
 ${resumeText.substring(0, 4000)}
 
-YOUR GOAL:
-1. Conduct a rigorous technical interview matching your persona and difficulty settings.
-2. START IMMEDIATELY by introducing yourself (in character) and asking your first question based on their resume.
-3. Then move to a system design or coding challenge fitting the role.
+YOUR GOALS:
+1. Start immediately: introduce yourself (in character) and ask your first question based on their resume.
+2. Conduct a structured technical interview matching your persona and difficulty.
+3. Progress naturally: resume validation → technical deep-dive → system design or coding challenge.
+4. Adapt follow-up questions based on the candidate's ACTUAL responses.
 
-MULTIMODAL CAPABILITIES & "SHADOW" MONITORING:
-- You have VISION: You can see the candidate via their webcam.
-- Monitor their Body Language: Slouching, looking away from the camera, or looking nervous.
-- If you notice bad posture or eye contact, address it! 
-  - If Friendly: "Hey, try to look at me, you'll feel more confident!"
-  - If Tough: "Maintain eye contact. It shows confidence."
-  - If Roast: "Are you looking for the answers on the floor? My eyes are up here."
-- If they look nervous or sweaty, use that to adjust your pressure.
+MULTIMODAL AWARENESS:
+- You can see the candidate via webcam. If you notice poor body language, address it in-character.
 
-STYLE GUIDELINES (STRICT):
-- You are a VOICE-ONLY interface.
-- You must NOT generate internal thought logs, plans, or headers.
-- Your output must ONLY be the exact words you speak to the candidate.
-- Be concise (under 30 seconds per response).
+VOICE OUTPUT RULES:
+- You are a VOICE-ONLY interface. Output ONLY the words you speak.
+- Do NOT output internal thoughts, plans, markdown, headers, or formatting.
+- Be concise: each response should be under 30 seconds of speech.
 - Speak naturally and professionally.
 
-IMPORTANT: Begin speaking as soon as you receive this setup. Do NOT wait for the candidate to speak first. Introduce yourself and dive into the first question.
-          `;
+${ANTI_HALLUCINATION_RULES}
+
+BEGIN: Introduce yourself and ask your first question now. Do NOT wait for the candidate to speak first.`;
 
           const setupMessage = {
             setup: {
@@ -441,21 +401,18 @@ IMPORTANT: Begin speaking as soon as you receive this setup. Do NOT wait for the
           };
           ws.send(JSON.stringify(setupMessage));
 
-          // Start audio and video - but nothing will be sent until isSetupCompleteRef.current is true
           startAudioInput(ws);
 
-          // START VIDEO STREAMING
+          // Video streaming (2 FPS)
           if (webcamRef?.current) {
             const videoCanvas = document.createElement("canvas");
             const videoCtx = videoCanvas.getContext("2d");
             const videoEl = webcamRef.current;
 
-            // Send a frame every 500ms (2 FPS) - sufficient for analysis without killing bandwidth
             const videoInterval = setInterval(() => {
               if (ws.readyState !== WebSocket.OPEN || !videoEl.videoWidth)
                 return;
 
-              // Draw current frame to canvas (resize to 320px width for efficiency)
               const scale = 320 / videoEl.videoWidth;
               videoCanvas.width = 320;
               videoCanvas.height = videoEl.videoHeight * scale;
@@ -468,7 +425,6 @@ IMPORTANT: Begin speaking as soon as you receive this setup. Do NOT wait for the
                 videoCanvas.height,
               );
 
-              // Get JPEG base64
               const base64Image = videoCanvas
                 .toDataURL("image/jpeg", 0.6)
                 .split(",")[1];
@@ -486,7 +442,6 @@ IMPORTANT: Begin speaking as soon as you receive this setup. Do NOT wait for the
               ws.send(JSON.stringify(msg));
             }, 500);
 
-            // Clear interval on close
             const originalClose = ws.onclose;
             ws.onclose = (ev) => {
               clearInterval(videoInterval);
@@ -507,22 +462,13 @@ IMPORTANT: Begin speaking as soon as you receive this setup. Do NOT wait for the
               data = JSON.parse(event.data);
             }
           } catch (e) {
-            console.error("Parse Error", e);
             return;
           }
 
-          // DEBUG LOGGING
           if (data.setupComplete) {
-            console.log("👻 Gemini Setup Complete:", data);
-          } else {
-            console.log("👻 Incoming Message:", JSON.stringify(data, null, 2));
-          }
-
-          if (data.setupComplete) {
-            console.log("👻 Gemini Setup Complete");
             isSetupCompleteRef.current = true;
 
-            // Trigger the first prompt now that setup is complete
+            // Trigger the first prompt
             const triggerMessage = {
               client_content: {
                 turns: [
@@ -567,7 +513,7 @@ IMPORTANT: Begin speaking as soon as you receive this setup. Do NOT wait for the
               }
             }
 
-            // Capture AI Output Transcription - real-time display
+            // AI Output Transcription
             const outputTranscript =
               serverContent.modelTurnTranscription?.text ||
               serverContent.outputTranscription?.text ||
@@ -601,7 +547,7 @@ IMPORTANT: Begin speaking as soon as you receive this setup. Do NOT wait for the
               });
             }
 
-            // Capture User Input Transcription - real-time display
+            // User Input Transcription
             const inputTranscript =
               serverContent.inputTranscription?.text ||
               serverContent.input_transcription?.text;
@@ -648,8 +594,7 @@ IMPORTANT: Begin speaking as soon as you receive this setup. Do NOT wait for the
           }
         };
 
-        ws.onclose = (event) => {
-          console.log("Gemini Closed:", event.code, event.reason);
+        ws.onclose = () => {
           if (socketRef.current === ws) {
             setIsConnected(false);
           }
@@ -657,7 +602,7 @@ IMPORTANT: Begin speaking as soon as you receive this setup. Do NOT wait for the
           stopAudioPlayback();
         };
       } catch (e) {
-        console.error("Connection Failed:", e);
+        console.error("Connection failed:", e);
         if (!socketRef.current) return;
         setIsConnected(false);
         stopAudioPlayback();

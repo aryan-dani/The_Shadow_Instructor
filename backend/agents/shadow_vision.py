@@ -6,52 +6,36 @@ import base64
 
 class ShadowAgent:
     def __init__(self):
-        self.client = get_gemini_client(location=config.LIVE_LOCATION)
-        # VERIFICATION LOG
-        is_vertex = getattr(self.client, "vertexai", False)
-        print(f"[ShadowAgent] Initialized. 🟢 Vertex AI: {is_vertex} | Location: {config.LIVE_LOCATION}")
-        
-        self.model = config.LIVE_INTERVIEW_MODEL
+        self.client = get_gemini_client()
+        self.model = config.SHADOW_MODEL
 
-    async def analyze_frame_and_context(self, base64_image: str, last_transcript: str = "", persona: str = "friendly") -> dict:
+    async def analyze_frame_and_context(self, base64_image: str, persona: str = "friendly") -> dict:
         """
-        Analyzes a single video frame for non-verbal cues (eye contact, posture).
-        Also considers the last spoke transcript to check for anxiety/rambling visually + verbally.
+        Analyzes a single video frame for non-verbal cues (eye contact, posture, expression).
         """
-        tone_instruction = "Be helpful and encouraging."
-        if persona == "tough":
-            tone_instruction = "Be direct and stern. Focus on professional presence."
-        elif persona == "faang":
-            tone_instruction = "Focus on leadership principles and high-bar confidence."
-        elif persona == "roast":
-            tone_instruction = "Be sarcastic and ruthless. Mock their posture or lack of eye contact."
+        tone_map = {
+            "friendly": "Be warm and encouraging, like a supportive mentor.",
+            "tough": "Be direct and professional. Focus on executive presence.",
+            "faang": "Evaluate against top-tier tech company standards for composure and confidence.",
+            "roast": "Be hilariously sarcastic. Mock poor posture or wandering eyes with comedic flair.",
+        }
+        tone = tone_map.get(persona, tone_map["friendly"])
 
-        prompt = f"""
-        You are "The Shadow", a real-time interview coach. 
-        Your current persona is: {persona}. {tone_instruction}
-        
-        Analyze this webcam frame of a candidate during a technical interview.
-        
-        Check for:
-        1. **Eye Contact**: Is the user looking at the camera/screen or looking away/down too much?
-        2. **Posture**: Slouching? Stiff?
-        3. **Expression**: Nervous? Confident? Bored?
-        
-        Output a JSON object with this EXACT schema:
-        {{
-            "status": "ok" | "alert",
-            "message": "Brief advice in your persona style" (e.g. Friendly: "Sit up!", Roast: "Stop slouching like a wet noodle"),
-            "confidence": 0-1
-        }}
-        
-        Only return "alert" if there is a CLEAR issue. If they look fine, status is "ok", message is null or empty.
-        Be concise. Max 7 words.
-        """
-        
+        prompt = f"""Analyze this webcam frame of a candidate in a live technical interview.
+Persona: {persona}. Tone: {tone}
+
+Evaluate:
+1. **Eye Contact** — Are they looking at the camera/screen, or distracted?
+2. **Posture** — Slouching, stiff, or well-positioned?
+3. **Expression** — Nervous, confident, or disengaged?
+
+Return JSON:
+{{"status": "ok"|"alert", "message": "Brief advice (max 7 words) in persona tone, or null if ok", "confidence": 0.0-1.0}}
+
+Only return "alert" for CLEAR issues. If they look fine, use "ok" with null message."""
+
         try:
-            # We assume image is JPEG base64
             image_bytes = base64.b64decode(base64_image)
-            
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=[
@@ -64,39 +48,33 @@ class ShadowAgent:
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
                     temperature=0.4,
-                    system_instruction="You are a helpful monitoring tool. Be concise and JSON only."
                 )
             )
-            
-            # Simple parsing
-            text = response.text
-            data = json.loads(text)
-            return data
-            
+            return json.loads(response.text)
         except Exception as e:
-            print(f"Shadow Vision Error: {e}")
+            print(f"[ShadowAgent] Vision error: {e}")
             return {"status": "error"}
 
     async def analyze_pacing(self, transcript_chunk: str, persona: str = "friendly") -> dict:
-        """
-        Analyzes a chunk of text for rambling.
-        """
+        """Analyzes a chunk of spoken text for rambling, repetition, or filler words."""
         if len(transcript_chunk.split()) < 30:
-            return {"status": "ok"} # Too short
+            return {"status": "ok"}
 
-        tone_instruction = "Be helpful."
-        if persona == "roast":
-            tone_instruction = "Be mean and funny. Tell them they are boring you to death."
-            
-        prompt = f"""
-        Analyze this spoken transcript for "Rambling".
-        Current Persona: {persona}. {tone_instruction}
-        Text: "{transcript_chunk}"
-        
-        Is the speaker repeating themselves, going off-topic, or using excessive filler words?
-        Output JSON: {{ "status": "alert"|"ok", "message": "Summarize your point in your persona style" }}
-        """
-        
+        tone_map = {
+            "friendly": "Give gentle, constructive advice.",
+            "tough": "Be blunt about wasted time.",
+            "faang": "Note that conciseness is valued at top companies.",
+            "roast": "Roast them for boring you to death.",
+        }
+        tone = tone_map.get(persona, tone_map["friendly"])
+
+        prompt = f"""Analyze this spoken transcript segment for rambling.
+Persona: {persona}. Tone: {tone}
+Text: "{transcript_chunk}"
+
+Is the speaker repeating themselves, going off-topic, or using excessive filler words?
+Return JSON: {{"status": "alert"|"ok", "message": "Brief advice in persona tone"}}"""
+
         try:
             response = self.client.models.generate_content(
                 model=self.model,
@@ -108,5 +86,5 @@ class ShadowAgent:
             )
             return json.loads(response.text)
         except Exception as e:
-            print(f"Shadow Text Error: {e}")
+            print(f"[ShadowAgent] Pacing error: {e}")
             return {"status": "error"}

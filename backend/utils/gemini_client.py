@@ -18,24 +18,24 @@ def get_credentials():
                 service_account_info,
                 scopes=["https://www.googleapis.com/auth/cloud-platform"]
             )
-        except json.JSONDecodeError as e:
-            print(f"Warning: Invalid GOOGLE_APPLICATION_CREDENTIALS_JSON: {e}")
+        except json.JSONDecodeError:
+            pass
     return None
 
-def get_gemini_client(location: str = None) -> genai.Client:
+def get_gemini_client(location: str | None = None) -> genai.Client:
     """
-    Returns a configured Gemini Client.
-    Prioritizes Vertex AI (Service Account) if credentials exist.
-    Falls back to Google AI Studio (API Key).
+    Returns a configured Gemini Client using Vertex AI.
+    Raises an exception if service account credentials are not configured.
     """
     creds = get_credentials()
+    if not creds:
+        raise ValueError("Google Cloud service account credentials are not configured.")
 
     target_location = location or config.GOOGLE_CLOUD_LOCATION
 
     return genai.Client(
-        vertexai=True if creds else False,
-        project=config.GOOGLE_CLOUD_PROJECT if creds else None,
-        location=target_location if creds else None,
+        vertexai=True,
+        project=config.GOOGLE_CLOUD_PROJECT,
+        location=target_location,
         credentials=creds,
-        api_key=config.GEMINI_API_KEY if not creds else None
     )

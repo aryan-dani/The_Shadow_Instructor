@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { WS_BASE_URL } from "../utils/api";
 
 export type ShadowFeedback = {
@@ -34,24 +34,18 @@ export function useShadowObserver({
     }
 
     const wsUrl = `${WS_BASE_URL}/ws/shadow?persona=${persona}`;
-
     const ws = new WebSocket(wsUrl);
     socketRef.current = ws;
-
-    ws.onopen = () => {
-      console.log("👻 Shadow Observer Connected");
-    };
 
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === "feedback") {
           setFeedback(data);
-          // Auto-clear feedback after 5 seconds
           setTimeout(() => setFeedback(null), 5000);
         }
       } catch (e) {
-        console.error("Shadow Parse Error", e);
+        // Ignore parse errors
       }
     };
 
@@ -60,7 +54,7 @@ export function useShadowObserver({
     };
   }, [isConnected]);
 
-  // 1. Monitor Transcript Pacing (Rambling)
+  // Monitor Transcript Pacing
   useEffect(() => {
     if (
       !isConnected ||
@@ -69,7 +63,6 @@ export function useShadowObserver({
     )
       return;
 
-    // Only send if significant change and strictly longer (user is speaking)
     if (latestTranscript.length > lastTranscriptRef.current.length + 50) {
       const diff = latestTranscript.slice(lastTranscriptRef.current.length);
       socketRef.current.send(
@@ -79,7 +72,7 @@ export function useShadowObserver({
     }
   }, [latestTranscript, isConnected]);
 
-  // 2. Monitor Visuals (Eye Contact) - 1 FPS
+  // Monitor Visuals (Eye Contact) — every 2 seconds
   useEffect(() => {
     if (!isConnected || !videoRef.current) return;
 
@@ -89,16 +82,15 @@ export function useShadowObserver({
       if (!videoRef.current || !videoRef.current.videoWidth) return;
 
       const canvas = document.createElement("canvas");
-      canvas.width = 320; // Low res for speed
+      canvas.width = 320;
       canvas.height = 240;
       const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        const base64 = canvas.toDataURL("image/jpeg", 0.5).split(",")[1]; // Low quality JPEG
-
+        const base64 = canvas.toDataURL("image/jpeg", 0.5).split(",")[1];
         socketRef.current.send(JSON.stringify({ type: "frame", data: base64 }));
       }
-    }, 2000); // Every 2 seconds
+    }, 2000);
 
     return () => clearInterval(interval);
   }, [isConnected, videoRef]);

@@ -37,7 +37,7 @@ export function FeedbackDashboard({
                     text: text,
                 });
             } catch (err) {
-                console.log('Error sharing:', err);
+                // Share was cancelled or failed
             }
         } else {
             await navigator.clipboard.writeText(text);
@@ -109,8 +109,8 @@ export function FeedbackDashboard({
                                     <span className="text-xl text-neutral-600 font-medium">/100</span>
                                 </div>
                                 <div className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border shadow-sm ${["Strong Hire", "Hire"].includes(report.final_verdict) ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
-                                        report.final_verdict === "Weak Hire" ? "bg-amber-500/10 border-amber-500/20 text-amber-400" :
-                                            "bg-rose-500/10 border-rose-500/20 text-rose-400"
+                                    report.final_verdict === "Weak Hire" ? "bg-amber-500/10 border-amber-500/20 text-amber-400" :
+                                        "bg-rose-500/10 border-rose-500/20 text-rose-400"
                                     }`}>
                                     {report.final_verdict}
                                 </div>

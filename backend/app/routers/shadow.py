@@ -1,8 +1,5 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from typing import List
 import json
-import base64
-import asyncio
 from agents.shadow_vision import ShadowAgent
 
 router = APIRouter()
@@ -10,34 +7,23 @@ shadow_agent = ShadowAgent()
 
 @router.websocket("/ws/shadow")
 async def shadow_websocket(websocket: WebSocket, persona: str = "friendly"):
-    print(f"👻 Shadow WebSocket Connection Request | Persona: {persona}")
     await websocket.accept()
-    print(f"👻 Shadow WebSocket Accepted")
-    
-    # Store minimal state for this connection
-    active = True
-    
+
     try:
-        while active:
-            # Expect JSON messages from frontend
-            # { type: "frame", data: "base64..." }
-            # { type: "transcript", text: "..." }
-            
+        while True:
             try:
                 data = await websocket.receive_text()
-            except Exception as e:
-                print(f"Shadow WebSocket Receive Error (Client disconnect?): {e}")
+            except Exception:
                 break
 
             message = json.loads(data)
-            
             response = None
-            
+
             if message.get("type") == "frame":
-                # Analyze visual cues
                 try:
-                    analysis = await shadow_agent.analyze_frame_and_context(message.get("data"), persona=persona)
-                    
+                    analysis = await shadow_agent.analyze_frame_and_context(
+                        message.get("data"), persona=persona
+                    )
                     if analysis.get("status") == "alert":
                         response = {
                             "type": "feedback",
@@ -45,15 +31,13 @@ async def shadow_websocket(websocket: WebSocket, persona: str = "friendly"):
                             "message": analysis.get("message"),
                             "level": "warning"
                         }
-                except Exception as e:
-                     print(f"Shadow Vision Analysis Error: {e}")
+                except Exception:
+                    pass
 
             elif message.get("type") == "transcript":
-                # Analyze text pacing
                 try:
                     text = message.get("text", "")
                     analysis = await shadow_agent.analyze_pacing(text, persona=persona)
-                    
                     if analysis.get("status") == "alert":
                         response = {
                             "type": "feedback",
@@ -61,18 +45,16 @@ async def shadow_websocket(websocket: WebSocket, persona: str = "friendly"):
                             "message": analysis.get("message", "Check your pacing"),
                             "level": "info"
                         }
-                except Exception as e:
-                    print(f"Shadow Text Analysis Error: {e}")
+                except Exception:
+                    pass
 
             if response:
                 await websocket.send_json(response)
-                
+
     except WebSocketDisconnect:
-        active = False
-        print("Shadow WebSocket disconnected")
-    except Exception as e:
-        print(f"Shadow WebSocket Error: {e}")
+        pass
+    except Exception:
         try:
             await websocket.close()
-        except:
+        except Exception:
             pass
