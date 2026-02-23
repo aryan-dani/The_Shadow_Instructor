@@ -72,8 +72,8 @@ graph TD
 
 - **Frontend**: Next.js 16, TypeScript, Tailwind CSS, Framer Motion
 - **Backend**: Python 3.12, FastAPI, WebSockets
-- **AI Models**: Google Gemini 3.0 Flash, Gemini 3.0 Pro
-- **Infrastructure**: Vercel (Frontend), Render (Backend)
+- **AI Models**: Google Gemini 3.0 Flash, Gemini 3.0 Pro (via Vertex AI), Groq Fallbacks
+- **Infrastructure**: Vercel (Frontend), Koyeb (Backend)
 
 ---
 
@@ -83,7 +83,9 @@ graph TD
 
 - Node.js v18+
 - Python 3.10+
-- Google Cloud API Key (with Gemini API enabled)
+- Google Cloud Project with Vertex AI API enabled
+- Google Service Account Credentials JSON
+- Groq API Key (for fallback capabilities)
 
 ### 1. Backend Setup
 
@@ -100,13 +102,30 @@ pip install -r requirements.txt
 
 Create a `.env` file in the `backend` directory:
 ```env
-GEMINI_API_KEY=your_google_api_key
+# Server
+PORT=8000
+HOST=127.0.0.1
+
+# Google Cloud (Vertex AI)
+GOOGLE_CLOUD_PROJECT=your_project_id
+GOOGLE_APPLICATION_CREDENTIALS_JSON='{"type": "service_account", ...}'
+
+# Groq (Rate Limit Fallback)
+GROQ_API_KEY=your_groq_key
 ```
 
 Run the server:
 ```bash
 uvicorn app.main:app --reload
 ```
+
+### 3. Deploying to Koyeb (Backend)
+This project is optimized for Koyeb's Free Tier using a native Docker container.
+1. Create a new App on [Koyeb](https://koyeb.com) connected to your Github Repository.
+2. Select **Dockerfile** builder (it will automatically detect the `Dockerfile` in the `backend/` directory).
+3. Under *Settings*, if requested, set the **Work Directory** to `backend`.
+4. Add the environment variables listed in the backend setup above (Koyeb automatically provides the `PORT` variable to the container).
+5. Deploy on the **Eco Nano (Free)** instance.
 
 ### 2. Frontend Setup
 
