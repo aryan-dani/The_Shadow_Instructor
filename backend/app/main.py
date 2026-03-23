@@ -1,11 +1,15 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, resume, shadow
+from app.routers import auth, resume, shadow, admin
 from agents.feedback_agent import FeedbackAgent
 from models.schemas import Message
 from models.analysis_schema import InterviewAnalysisReport
 from typing import List
 from pydantic import BaseModel
+from utils.usage_tracker import patch_groq_client
+
+# Apply global tracker patches
+patch_groq_client()
 
 app = FastAPI(title="The Shadow Instructor API")
 
@@ -23,6 +27,7 @@ async def health_check():
 
 # Include Routers
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
+app.include_router(admin.router, prefix="/admin", tags=["Admin"])
 app.include_router(resume.router, tags=["Resume"])
 app.include_router(shadow.router)
 

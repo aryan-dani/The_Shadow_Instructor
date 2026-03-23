@@ -28,4 +28,7 @@ class Config:
     GOOGLE_CLOUD_LOCATION = "global"
     GOOGLE_APPLICATION_CREDENTIALS_JSON = os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON")
 
+    # --- Admin Dashboard ---
+    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "shadow_admin_secret_123")
+
 config = Config()

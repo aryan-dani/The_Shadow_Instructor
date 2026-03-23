@@ -122,8 +122,10 @@ uvicorn app.main:app --reload
 ### 3. Deploying to Koyeb (Backend)
 This project is optimized for Koyeb's Free Tier using a native Docker container.
 1. Create a new App on [Koyeb](https://koyeb.com) connected to your Github Repository.
-2. Select **Dockerfile** builder (it will automatically detect the `Dockerfile` in the `backend/` directory).
-3. Under *Settings*, if requested, set the **Work Directory** to `backend`.
+2. Select **Dockerfile** builder.
+3. In the Builder section, apply these overrides:
+   - **Dockerfile location**: `Dockerfile`
+   - **Work directory**: `backend`
 4. Add the environment variables listed in the backend setup above (Koyeb automatically provides the `PORT` variable to the container).
 5. Deploy on the **Eco Nano (Free)** instance.
 
